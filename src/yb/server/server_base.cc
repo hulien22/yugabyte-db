@@ -466,7 +466,12 @@ Status RpcAndWebServerBase::Init() {
   }
   RETURN_NOT_OK_PREPEND(s, "Failed to load FS layout");
 
-  RETURN_NOT_OK(RpcServerBase::Init());
+  s = RpcServerBase::Init();
+  if (!s.ok() && is_first_run_) {
+    RETURN_NOT_OK_PREPEND(fs_manager_->DeleteFileSystemLayout(),
+                          "Failed deleting FS layout after RPCServerBase init failed.");
+  }
+  RETURN_NOT_OK_PREPEND(s, "Failed to initialize FS layout");
 
   return Status::OK();
 }
