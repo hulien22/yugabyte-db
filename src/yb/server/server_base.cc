@@ -468,6 +468,7 @@ Status RpcAndWebServerBase::Init() {
 
   s = RpcServerBase::Init();
   if (!s.ok() && is_first_run_) {
+    // TODO (julien) : Remove this once #5276 is fixed.
     RETURN_NOT_OK_PREPEND(fs_manager_->DeleteFileSystemLayout(),
                           "Failed deleting FS layout after RPCServerBase init failed.");
   }
