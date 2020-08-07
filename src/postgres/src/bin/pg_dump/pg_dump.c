@@ -72,35 +72,10 @@
 #define DISABLE_YB_EXTENTIONS
 #endif
 
-typedef struct
-{
-	const char *descr;			/* comment for an object */
-	Oid			classoid;		/* object class (catalog OID) */
-	Oid			objoid;			/* object OID */
-	int			objsubid;		/* subobject (table column #) */
-} CommentItem;
-
-typedef struct
-{
-	const char *provider;		/* label provider of this security label */
-	const char *label;			/* security label for an object */
-	Oid			classoid;		/* object class (catalog OID) */
-	Oid			objoid;			/* object OID */
-	int			objsubid;		/* subobject (table column #) */
-} SecLabelItem;
-
-typedef enum OidOptions
-{
-	zeroAsOpaque = 1,
-	zeroAsAny = 2,
-	zeroAsStar = 4,
-	zeroAsNone = 8
-} OidOptions;
 
 /* global decls */
 bool		g_verbose;			/* User wants verbose narration of our
 								 * activities. */
-static bool dosync = true;		/* Issue fsync() to make dump durable on disk. */
 
 /* subquery used to convert user ID (eg, datdba) to user name */
 static const char *username_subquery;
@@ -111,25 +86,17 @@ static const char *username_subquery;
  */
 static Oid	g_last_builtin_oid; /* value of the last builtin oid */
 
-/* The specified names/patterns should to match at least one entity */
-static int	strict_names = 0;
-
 /*
  * Object inclusion/exclusion lists
  *
  * The string lists record the patterns given by command-line switches,
  * which we then convert to lists of OIDs of matching objects.
  */
-static SimpleStringList schema_include_patterns = {NULL, NULL};
+// todo convert these
 static SimpleOidList schema_include_oids = {NULL, NULL};
-static SimpleStringList schema_exclude_patterns = {NULL, NULL};
 static SimpleOidList schema_exclude_oids = {NULL, NULL};
-
-static SimpleStringList table_include_patterns = {NULL, NULL};
 static SimpleOidList table_include_oids = {NULL, NULL};
-static SimpleStringList table_exclude_patterns = {NULL, NULL};
 static SimpleOidList table_exclude_oids = {NULL, NULL};
-static SimpleStringList tabledata_exclude_patterns = {NULL, NULL};
 static SimpleOidList tabledata_exclude_oids = {NULL, NULL};
 
 
@@ -148,623 +115,31 @@ static const CatalogId nilCatalogId = {0, 0};
 	fmtQualifiedId((obj)->dobj.namespace->dobj.name, \
 				   (obj)->dobj.name)
 
-static void help(const char *progname);
-static void setup_connection(Archive *AH,
-				 const char *dumpencoding, const char *dumpsnapshot,
-				 char *use_role);
-static ArchiveFormat parseArchiveFormat(const char *format, ArchiveMode *mode);
-static void expand_schema_name_patterns(Archive *fout,
-							SimpleStringList *patterns,
-							SimpleOidList *oids,
-							bool strict_names);
-static void expand_table_name_patterns(Archive *fout,
-						   SimpleStringList *patterns,
-						   SimpleOidList *oids,
-						   bool strict_names);
-static NamespaceInfo *findNamespace(Archive *fout, Oid nsoid);
-static void dumpTableData(Archive *fout, TableDataInfo *tdinfo);
-static void refreshMatViewData(Archive *fout, TableDataInfo *tdinfo);
-static void guessConstraintInheritance(TableInfo *tblinfo, int numTables);
-static void dumpComment(Archive *fout, const char *type, const char *name,
-			const char *namespace, const char *owner,
-			CatalogId catalogId, int subid, DumpId dumpId);
-static int findComments(Archive *fout, Oid classoid, Oid objoid,
-			 CommentItem **items);
-static int	collectComments(Archive *fout, CommentItem **items);
-static void dumpSecLabel(Archive *fout, const char *type, const char *name,
-			 const char *namespace, const char *owner,
-			 CatalogId catalogId, int subid, DumpId dumpId);
-static int findSecLabels(Archive *fout, Oid classoid, Oid objoid,
-			  SecLabelItem **items);
-static int	collectSecLabels(Archive *fout, SecLabelItem **items);
-static void dumpDumpableObject(Archive *fout, DumpableObject *dobj);
-static void dumpNamespace(Archive *fout, NamespaceInfo *nspinfo);
-static void dumpExtension(Archive *fout, ExtensionInfo *extinfo);
-static void dumpType(Archive *fout, TypeInfo *tyinfo);
-static void dumpBaseType(Archive *fout, TypeInfo *tyinfo);
-static void dumpEnumType(Archive *fout, TypeInfo *tyinfo);
-static void dumpRangeType(Archive *fout, TypeInfo *tyinfo);
-static void dumpUndefinedType(Archive *fout, TypeInfo *tyinfo);
-static void dumpDomain(Archive *fout, TypeInfo *tyinfo);
-static void dumpCompositeType(Archive *fout, TypeInfo *tyinfo);
-static void dumpCompositeTypeColComments(Archive *fout, TypeInfo *tyinfo);
-static void dumpShellType(Archive *fout, ShellTypeInfo *stinfo);
-static void dumpProcLang(Archive *fout, ProcLangInfo *plang);
-static void dumpFunc(Archive *fout, FuncInfo *finfo);
-static void dumpCast(Archive *fout, CastInfo *cast);
-static void dumpTransform(Archive *fout, TransformInfo *transform);
-static void dumpOpr(Archive *fout, OprInfo *oprinfo);
-static void dumpAccessMethod(Archive *fout, AccessMethodInfo *oprinfo);
-static void dumpOpclass(Archive *fout, OpclassInfo *opcinfo);
-static void dumpOpfamily(Archive *fout, OpfamilyInfo *opfinfo);
-static void dumpCollation(Archive *fout, CollInfo *collinfo);
-static void dumpConversion(Archive *fout, ConvInfo *convinfo);
-static void dumpRule(Archive *fout, RuleInfo *rinfo);
-static void dumpAgg(Archive *fout, AggInfo *agginfo);
-static void dumpTrigger(Archive *fout, TriggerInfo *tginfo);
-static void dumpEventTrigger(Archive *fout, EventTriggerInfo *evtinfo);
-static void dumpTable(Archive *fout, TableInfo *tbinfo);
-static void dumpTableSchema(Archive *fout, TableInfo *tbinfo);
-static void dumpAttrDef(Archive *fout, AttrDefInfo *adinfo);
-static void dumpSequence(Archive *fout, TableInfo *tbinfo);
-static void dumpSequenceData(Archive *fout, TableDataInfo *tdinfo);
-static void dumpIndex(Archive *fout, IndxInfo *indxinfo);
-static void dumpIndexAttach(Archive *fout, IndexAttachInfo *attachinfo);
-static void dumpStatisticsExt(Archive *fout, StatsExtInfo *statsextinfo);
-static void dumpConstraint(Archive *fout, ConstraintInfo *coninfo);
-static void dumpTableConstraintComment(Archive *fout, ConstraintInfo *coninfo);
-static void dumpTSParser(Archive *fout, TSParserInfo *prsinfo);
-static void dumpTSDictionary(Archive *fout, TSDictInfo *dictinfo);
-static void dumpTSTemplate(Archive *fout, TSTemplateInfo *tmplinfo);
-static void dumpTSConfig(Archive *fout, TSConfigInfo *cfginfo);
-static void dumpForeignDataWrapper(Archive *fout, FdwInfo *fdwinfo);
-static void dumpForeignServer(Archive *fout, ForeignServerInfo *srvinfo);
-static void dumpUserMappings(Archive *fout,
-				 const char *servername, const char *namespace,
-				 const char *owner, CatalogId catalogId, DumpId dumpId);
-static void dumpDefaultACL(Archive *fout, DefaultACLInfo *daclinfo);
-
-static void dumpACL(Archive *fout, CatalogId objCatId, DumpId objDumpId,
-		const char *type, const char *name, const char *subname,
-		const char *nspname, const char *owner,
-		const char *acls, const char *racls,
-		const char *initacls, const char *initracls);
-
-static void getDependencies(Archive *fout);
-static void BuildArchiveDependencies(Archive *fout);
-static void findDumpableDependencies(ArchiveHandle *AH, DumpableObject *dobj,
-						 DumpId **dependencies, int *nDeps, int *allocDeps);
-
-static DumpableObject *createBoundaryObjects(void);
-static void addBoundaryDependencies(DumpableObject **dobjs, int numObjs,
-						DumpableObject *boundaryObjs);
-
-static void getDomainConstraints(Archive *fout, TypeInfo *tyinfo);
-static void getTableData(DumpOptions *dopt, TableInfo *tblinfo, int numTables, bool oids, char relkind);
-static void makeTableDataInfo(DumpOptions *dopt, TableInfo *tbinfo, bool oids);
-static void buildMatViewRefreshDependencies(Archive *fout);
-static void getTableDataFKConstraints(void);
-static char *format_function_arguments(FuncInfo *finfo, char *funcargs,
-						  bool is_agg);
-static char *format_function_arguments_old(Archive *fout,
-							  FuncInfo *finfo, int nallargs,
-							  char **allargtypes,
-							  char **argmodes,
-							  char **argnames);
-static char *format_function_signature(Archive *fout,
-						  FuncInfo *finfo, bool honor_quotes);
-static char *convertRegProcReference(Archive *fout,
-						const char *proc);
-static char *getFormattedOperatorName(Archive *fout, const char *oproid);
-static char *convertTSFunction(Archive *fout, Oid funcOid);
-static Oid	findLastBuiltinOid_V71(Archive *fout);
-static char *getFormattedTypeName(Archive *fout, Oid oid, OidOptions opts);
-static void getBlobs(Archive *fout);
-static void dumpBlob(Archive *fout, BlobInfo *binfo);
-static int	dumpBlobs(Archive *fout, void *arg);
-static void dumpPolicy(Archive *fout, PolicyInfo *polinfo);
-static void dumpPublication(Archive *fout, PublicationInfo *pubinfo);
-static void dumpPublicationTable(Archive *fout, PublicationRelInfo *pubrinfo);
-static void dumpSubscription(Archive *fout, SubscriptionInfo *subinfo);
-static Oid  getDatabaseOid(Archive *AH);
-static void dumpDatabase(Archive *AH);
-static void dumpDatabaseConfig(Archive *AH, PQExpBuffer outbuf,
-				   const char *dbname, Oid dboid);
-static void dumpEncoding(Archive *AH);
-static void dumpStdStrings(Archive *AH);
-static void dumpSearchPath(Archive *AH);
-static void binary_upgrade_set_type_oids_by_type_oid(Archive *fout,
-										 PQExpBuffer upgrade_buffer,
-										 Oid pg_type_oid,
-										 bool force_array_type);
-static bool binary_upgrade_set_type_oids_by_rel_oid(Archive *fout,
-										PQExpBuffer upgrade_buffer, Oid pg_rel_oid);
-static void binary_upgrade_set_pg_class_oids(Archive *fout,
-								 PQExpBuffer upgrade_buffer,
-								 Oid pg_class_oid, bool is_index);
-static void binary_upgrade_extension_member(PQExpBuffer upgrade_buffer,
-								DumpableObject *dobj,
-								const char *objtype,
-								const char *objname,
-								const char *objnamespace);
-static const char *getAttrName(int attrnum, TableInfo *tblInfo);
-static const char *fmtCopyColumnList(const TableInfo *ti, PQExpBuffer buffer);
-static bool nonemptyReloptions(const char *reloptions);
-static void appendReloptionsArrayAH(PQExpBuffer buffer, const char *reloptions,
-						const char *prefix, Archive *fout);
-static char *get_synchronized_snapshot(Archive *fout);
-static void setupDumpWorker(Archive *AHX);
-static TableInfo *getRootTableInfo(TableInfo *tbinfo);
-
-static void HandleYBStatus(YBCStatus status) {
-	if (status) {
-		/* Copy the message to the current memory context and free the YBCStatus. */
-		const char* msg_buf = DupYBStatusMessage(status, false);
-		YBCFreeStatus(status);
-		exit_horribly(NULL, "%s\n", msg_buf);
-	}
+void initStatics(const char *username_subquery_,
+				 Oid	g_last_builtin_oid_) {
+	username_subquery = username_subquery_;
+	g_last_builtin_oid = g_last_builtin_oid_;
 }
 
-int
-main(int argc, char **argv)
-{
-	int			c;
-	const char *filename = NULL;
-	const char *format = "p";
-	TableInfo  *tblinfo;
-	int			numTables;
-	DumpableObject **dobjs;
-	int			numObjs;
-	DumpableObject *boundaryObjs;
-	int			i;
-	int			optindex;
+void dump(DumpOptions *dopt,
+		  Archive *fout,
+		  ArchiveFormat archiveFormat,
+		  int numWorkers,
+		  const char *filename,
+		  int compressLevel,
+		  int plainText) {
 	RestoreOptions *ropt;
-	Archive    *fout;			/* the script file */
-	const char *dumpencoding = NULL;
-	const char *dumpsnapshot = NULL;
-	char	   *use_role = NULL;
-	int			numWorkers = 1;
-	trivalue	prompt_password = TRI_DEFAULT;
-	int			compressLevel = -1;
-	int			plainText = 0;
-	ArchiveFormat archiveFormat = archUnknown;
-	ArchiveMode archiveMode;
-
-	static DumpOptions dopt;
-
-	static struct option long_options[] = {
-		{"data-only", no_argument, NULL, 'a'},
-		{"blobs", no_argument, NULL, 'b'},
-		{"no-blobs", no_argument, NULL, 'B'},
-		{"clean", no_argument, NULL, 'c'},
-		{"create", no_argument, NULL, 'C'},
-		{"dbname", required_argument, NULL, 'd'},
-		{"file", required_argument, NULL, 'f'},
-		{"format", required_argument, NULL, 'F'},
-		{"host", required_argument, NULL, 'h'},
-		{"jobs", 1, NULL, 'j'},
-		{"no-reconnect", no_argument, NULL, 'R'},
-		{"oids", no_argument, NULL, 'o'},
-		{"no-owner", no_argument, NULL, 'O'},
-		{"port", required_argument, NULL, 'p'},
-		{"schema", required_argument, NULL, 'n'},
-		{"exclude-schema", required_argument, NULL, 'N'},
-		{"schema-only", no_argument, NULL, 's'},
-		{"superuser", required_argument, NULL, 'S'},
-		{"table", required_argument, NULL, 't'},
-		{"exclude-table", required_argument, NULL, 'T'},
-		{"no-password", no_argument, NULL, 'w'},
-		{"password", no_argument, NULL, 'W'},
-		{"username", required_argument, NULL, 'U'},
-		{"verbose", no_argument, NULL, 'v'},
-		{"no-privileges", no_argument, NULL, 'x'},
-		{"no-acl", no_argument, NULL, 'x'},
-		{"compress", required_argument, NULL, 'Z'},
-		{"encoding", required_argument, NULL, 'E'},
-		{"help", no_argument, NULL, '?'},
-		{"version", no_argument, NULL, 'V'},
-		{"masters", required_argument, NULL, 'm'},
-
-		/*
-		 * the following options don't have an equivalent short option letter
-		 */
-		{"attribute-inserts", no_argument, &dopt.column_inserts, 1},
-		{"binary-upgrade", no_argument, &dopt.binary_upgrade, 1},
-		{"column-inserts", no_argument, &dopt.column_inserts, 1},
-		{"disable-dollar-quoting", no_argument, &dopt.disable_dollar_quoting, 1},
-		{"disable-triggers", no_argument, &dopt.disable_triggers, 1},
-		{"enable-row-security", no_argument, &dopt.enable_row_security, 1},
-		{"exclude-table-data", required_argument, NULL, 4},
-		{"if-exists", no_argument, &dopt.if_exists, 1},
-		{"inserts", no_argument, &dopt.dump_inserts, 1},
-		{"lock-wait-timeout", required_argument, NULL, 2},
-		{"no-tablespaces", no_argument, &dopt.outputNoTablespaces, 1},
-		{"quote-all-identifiers", no_argument, &quote_all_identifiers, 1},
-		{"load-via-partition-root", no_argument, &dopt.load_via_partition_root, 1},
-		{"role", required_argument, NULL, 3},
-		{"section", required_argument, NULL, 5},
-		{"serializable-deferrable", no_argument, &dopt.serializable_deferrable, 1},
-		{"snapshot", required_argument, NULL, 6},
-		{"strict-names", no_argument, &strict_names, 1},
-		{"use-set-session-authorization", no_argument, &dopt.use_setsessauth, 1},
-		{"no-comments", no_argument, &dopt.no_comments, 1},
-		{"no-publications", no_argument, &dopt.no_publications, 1},
-		{"no-security-labels", no_argument, &dopt.no_security_labels, 1},
-		{"no-synchronized-snapshots", no_argument, &dopt.no_synchronized_snapshots, 1},
-		{"no-unlogged-table-data", no_argument, &dopt.no_unlogged_table_data, 1},
-		{"no-subscriptions", no_argument, &dopt.no_subscriptions, 1},
-		{"no-sync", no_argument, NULL, 7},
-		{"include-yb-metadata", no_argument, &dopt.include_yb_metadata, 1},
-
-		{NULL, 0, NULL, 0}
-	};
-
-	set_pglocale_pgservice(argv[0], PG_TEXTDOMAIN("ysql_dump"));
-
-	/*
-	 * Initialize what we need for parallel execution, especially for thread
-	 * support on Windows.
-	 */
-	init_parallel_dump_utils();
-
-	g_verbose = false;
-
-	strcpy(g_comment_start, "-- ");
-	g_comment_end[0] = '\0';
-	strcpy(g_opaque_type, "opaque");
-
-	progname = get_progname(argv[0]);
-
-	if (argc > 1)
-	{
-		if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-?") == 0)
-		{
-			help(progname);
-			exit_nicely(0);
-		}
-		if (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-V") == 0)
-		{
-			puts("ysql_dump (YSQL) " PG_VERSION);
-			exit_nicely(0);
-		}
-	}
-
-	InitDumpOptions(&dopt);
-
-	while ((c = getopt_long(argc, argv, "abBcCd:E:f:F:h:j:n:N:oOp:RsS:t:T:U:vwWxZ:",
-							long_options, &optindex)) != -1)
-	{
-		switch (c)
-		{
-			case 'a':			/* Dump data only */
-				dopt.dataOnly = true;
-				break;
-
-			case 'b':			/* Dump blobs */
-				dopt.outputBlobs = true;
-				break;
-
-			case 'B':			/* Don't dump blobs */
-				dopt.dontOutputBlobs = true;
-				break;
-
-			case 'c':			/* clean (i.e., drop) schema prior to create */
-				dopt.outputClean = 1;
-				break;
-
-			case 'C':			/* Create DB */
-				dopt.outputCreateDB = 1;
-				break;
-
-			case 'd':			/* database name */
-				dopt.dbname = pg_strdup(optarg);
-				break;
-
-			case 'E':			/* Dump encoding */
-				dumpencoding = pg_strdup(optarg);
-				break;
-
-			case 'f':
-				filename = pg_strdup(optarg);
-				break;
-
-			case 'F':
-				format = pg_strdup(optarg);
-				break;
-
-			case 'h':			/* server host */
-				dopt.pghost = pg_strdup(optarg);
-				break;
-
-			case 'm':			/* YB master hosts */
-				dopt.master_hosts = pg_strdup(optarg);
-				break;
-
-			case 'j':			/* number of dump jobs */
-				numWorkers = atoi(optarg);
-				break;
-
-			case 'n':			/* include schema(s) */
-				simple_string_list_append(&schema_include_patterns, optarg);
-				dopt.include_everything = false;
-				break;
-
-			case 'N':			/* exclude schema(s) */
-				simple_string_list_append(&schema_exclude_patterns, optarg);
-				break;
-
-			case 'o':			/* Dump oids */
-				dopt.oids = true;
-				break;
-
-			case 'O':			/* Don't reconnect to match owner */
-				dopt.outputNoOwner = 1;
-				break;
-
-			case 'p':			/* server port */
-				dopt.pgport = pg_strdup(optarg);
-				break;
-
-			case 'R':
-				/* no-op, still accepted for backwards compatibility */
-				break;
-
-			case 's':			/* dump schema only */
-				dopt.schemaOnly = true;
-				break;
-
-			case 'S':			/* Username for superuser in plain text output */
-				dopt.outputSuperuser = pg_strdup(optarg);
-				break;
-
-			case 't':			/* include table(s) */
-				simple_string_list_append(&table_include_patterns, optarg);
-				dopt.include_everything = false;
-				break;
-
-			case 'T':			/* exclude table(s) */
-				simple_string_list_append(&table_exclude_patterns, optarg);
-				break;
-
-			case 'U':
-				dopt.username = pg_strdup(optarg);
-				break;
-
-			case 'v':			/* verbose */
-				g_verbose = true;
-				break;
-
-			case 'w':
-				prompt_password = TRI_NO;
-				break;
-
-			case 'W':
-				prompt_password = TRI_YES;
-				break;
-
-			case 'x':			/* skip ACL dump */
-				dopt.aclsSkip = true;
-				break;
-
-			case 'Z':			/* Compression Level */
-				compressLevel = atoi(optarg);
-				if (compressLevel < 0 || compressLevel > 9)
-				{
-					write_msg(NULL, "compression level must be in range 0..9\n");
-					exit_nicely(1);
-				}
-				break;
-
-			case 0:
-				/* This covers the long options. */
-				break;
-
-			case 2:				/* lock-wait-timeout */
-				dopt.lockWaitTimeout = pg_strdup(optarg);
-				break;
-
-			case 3:				/* SET ROLE */
-				use_role = pg_strdup(optarg);
-				break;
-
-			case 4:				/* exclude table(s) data */
-				simple_string_list_append(&tabledata_exclude_patterns, optarg);
-				break;
-
-			case 5:				/* section */
-				set_dump_section(optarg, &dopt.dumpSections);
-				break;
-
-			case 6:				/* snapshot */
-				dumpsnapshot = pg_strdup(optarg);
-				break;
-
-			case 7:				/* no-sync */
-				dosync = false;
-				break;
-
-			default:
-				fprintf(stderr, _("Try \"%s --help\" for more information.\n"), progname);
-				exit_nicely(1);
-		}
-	}
-
-	/*
-	 * Non-option argument specifies database name as long as it wasn't
-	 * already specified with -d / --dbname
-	 */
-	if (optind < argc && dopt.dbname == NULL)
-		dopt.dbname = argv[optind++];
-
-	/* Complain if any arguments remain */
-	if (optind < argc)
-	{
-		fprintf(stderr, _("%s: too many command-line arguments (first is \"%s\")\n"),
-				progname, argv[optind]);
-		fprintf(stderr, _("Try \"%s --help\" for more information.\n"),
-				progname);
-		exit_nicely(1);
-	}
-
-	/* --column-inserts implies --inserts */
-	if (dopt.column_inserts)
-		dopt.dump_inserts = 1;
-
-	/*
-	 * Binary upgrade mode implies dumping sequence data even in schema-only
-	 * mode.  This is not exposed as a separate option, but kept separate
-	 * internally for clarity.
-	 */
-	if (dopt.binary_upgrade)
-		dopt.sequence_data = 1;
-
-	if (dopt.dataOnly && dopt.schemaOnly)
-	{
-		write_msg(NULL, "options -s/--schema-only and -a/--data-only cannot be used together\n");
-		exit_nicely(1);
-	}
-
-	if (dopt.dataOnly && dopt.outputClean)
-	{
-		write_msg(NULL, "options -c/--clean and -a/--data-only cannot be used together\n");
-		exit_nicely(1);
-	}
-
-	if (dopt.dump_inserts && dopt.oids)
-	{
-		write_msg(NULL, "options --inserts/--column-inserts and -o/--oids cannot be used together\n");
-		write_msg(NULL, "(The INSERT command cannot set OIDs.)\n");
-		exit_nicely(1);
-	}
-
-	if (dopt.if_exists && !dopt.outputClean)
-		exit_horribly(NULL, "option --if-exists requires option -c/--clean\n");
-
-	/* Identify archive format to emit */
-	archiveFormat = parseArchiveFormat(format, &archiveMode);
-
-	/* archiveFormat specific setup */
-	if (archiveFormat == archNull)
-		plainText = 1;
-
-	/* Custom and directory formats are compressed by default, others not */
-	if (compressLevel == -1)
-	{
-#ifdef HAVE_LIBZ
-		if (archiveFormat == archCustom || archiveFormat == archDirectory)
-			compressLevel = Z_DEFAULT_COMPRESSION;
-		else
-#endif
-			compressLevel = 0;
-	}
-
-#ifndef HAVE_LIBZ
-	if (compressLevel != 0)
-		write_msg(NULL, "WARNING: requested compression not available in this "
-				  "installation -- archive will be uncompressed\n");
-	compressLevel = 0;
-#endif
-
-	/*
-	 * If emitting an archive format, we always want to emit a DATABASE item,
-	 * in case --create is specified at pg_restore time.
-	 */
-	if (!plainText)
-		dopt.outputCreateDB = 1;
-
-	/*
-	 * On Windows we can only have at most MAXIMUM_WAIT_OBJECTS (= 64 usually)
-	 * parallel jobs because that's the maximum limit for the
-	 * WaitForMultipleObjects() call.
-	 */
-	if (numWorkers <= 0
-#ifdef WIN32
-		|| numWorkers > MAXIMUM_WAIT_OBJECTS
-#endif
-		)
-		exit_horribly(NULL, "invalid number of parallel jobs\n");
-
-	/* Parallel backup only in the directory archive format so far */
-	if (archiveFormat != archDirectory && numWorkers > 1)
-		exit_horribly(NULL, "parallel backup only supported by the directory format\n");
-
-	/* Open the output file */
-	fout = CreateArchive(filename, archiveFormat, compressLevel, dosync,
-						 archiveMode, setupDumpWorker);
-
-	/* Make dump options accessible right away */
-	SetArchiveOptions(fout, &dopt, NULL);
-
-	/* Register the cleanup hook */
-	on_exit_close_archive(fout);
-
-	/* Let the archiver know how noisy to be */
-	fout->verbose = g_verbose;
-
-	/*
-	 * We allow the server to be back to 8.0, and up to any minor release of
-	 * our own major version.  (See also version check in pg_dumpall.c.)
-	 */
-	fout->minRemoteVersion = 80000;
-	fout->maxRemoteVersion = (PG_VERSION_NUM / 100) * 100 + 99;
-
-	fout->numWorkers = numWorkers;
-
-	if (dopt.pghost == NULL || dopt.pghost[0] == '\0')
-		dopt.pghost = DefaultHost;
-
-#ifndef DISABLE_YB_EXTENTIONS
-	if (dopt.include_yb_metadata)
-	{
-		if (dopt.master_hosts)
-			YBCSetMasterAddresses(dopt.master_hosts);
-		else
-			YBCSetMasterAddresses(dopt.pghost);
-
-		HandleYBStatus(YBCInit(progname, palloc, /* cstring_to_text_with_len_fn */ NULL));
-		HandleYBStatus(YBCInitPgGateBackend());
-	}
-#endif  /* DISABLE_YB_EXTENTIONS */
-
-	/*
-	 * Open the database using the Archiver, so it knows about it. Errors mean
-	 * death.
-	 */
-	ConnectDatabase(fout, dopt.dbname, dopt.pghost, dopt.pgport, dopt.username, prompt_password);
-	setup_connection(fout, dumpencoding, dumpsnapshot, use_role);
-
-	/*
-	 * Disable security label support if server version < v9.1.x (prevents
-	 * access to nonexistent pg_seclabel catalog)
-	 */
-	if (fout->remoteVersion < 90100)
-		dopt.no_security_labels = 1;
-
-	/*
-	 * On hot standbys, never try to dump unlogged table data, since it will
-	 * just throw an error.
-	 */
-	if (fout->isStandby)
-		dopt.no_unlogged_table_data = true;
+	int numTables;
+	TableInfo  *tblinfo;
+	DumpableObject *boundaryObjs;
+	DumpableObject **dobjs;
+	int numObjs;
 
 	/* Select the appropriate subquery to convert user IDs to names */
 	if (fout->remoteVersion >= 80100)
 		username_subquery = "SELECT rolname FROM pg_catalog.pg_roles WHERE oid =";
 	else
 		username_subquery = "SELECT usename FROM pg_catalog.pg_user WHERE usesysid =";
-
-	/* check the version for the synchronized snapshots feature */
-	if (numWorkers > 1 && fout->remoteVersion < 90200
-		&& !dopt.no_synchronized_snapshots)
-		exit_horribly(NULL,
-					  "Synchronized snapshots are not supported by this server version.\n"
-					  "Run with --no-synchronized-snapshots instead if you do not need\n"
-					  "synchronized snapshots.\n");
-
-	/* check the version when a snapshot is explicitly specified by user */
-	if (dumpsnapshot && fout->remoteVersion < 90200)
-		exit_horribly(NULL,
-					  "Exported snapshots are not supported by this server version.\n");
 
 	/*
 	 * Find the last built-in OID, if needed (prior to 8.1)
@@ -779,39 +154,6 @@ main(int argc, char **argv)
 	if (g_verbose)
 		write_msg(NULL, "last built-in OID is %u\n", g_last_builtin_oid);
 
-	/* Expand schema selection patterns into OID lists */
-	if (schema_include_patterns.head != NULL)
-	{
-		expand_schema_name_patterns(fout, &schema_include_patterns,
-									&schema_include_oids,
-									strict_names);
-		if (schema_include_oids.head == NULL)
-			exit_horribly(NULL, "no matching schemas were found\n");
-	}
-	expand_schema_name_patterns(fout, &schema_exclude_patterns,
-								&schema_exclude_oids,
-								false);
-	/* non-matching exclusion patterns aren't an error */
-
-	/* Expand table selection patterns into OID lists */
-	if (table_include_patterns.head != NULL)
-	{
-		expand_table_name_patterns(fout, &table_include_patterns,
-								   &table_include_oids,
-								   strict_names);
-		if (table_include_oids.head == NULL)
-			exit_horribly(NULL, "no matching tables were found\n");
-	}
-	expand_table_name_patterns(fout, &table_exclude_patterns,
-							   &table_exclude_oids,
-							   false);
-
-	expand_table_name_patterns(fout, &tabledata_exclude_patterns,
-							   &tabledata_exclude_oids,
-							   false);
-
-	/* non-matching exclusion patterns aren't an error */
-
 	/*
 	 * Dumping blobs is the default for dumps where an inclusion switch is not
 	 * used (an "include everything" dump).  -B can be used to exclude blobs
@@ -821,8 +163,8 @@ main(int argc, char **argv)
 	 * -s means "schema only" and blobs are data, not schema, so we never
 	 * include blobs when -s is used.
 	 */
-	if (dopt.include_everything && !dopt.schemaOnly && !dopt.dontOutputBlobs)
-		dopt.outputBlobs = true;
+	if (dopt->include_everything && !dopt->schemaOnly && !dopt->dontOutputBlobs)
+		dopt->outputBlobs = true;
 
 	/*
 	 * Now scan the database and create DumpableObject structs for all the
@@ -833,16 +175,16 @@ main(int argc, char **argv)
 	if (fout->remoteVersion < 80400)
 		guessConstraintInheritance(tblinfo, numTables);
 
-	if (!dopt.schemaOnly)
+	if (!dopt->schemaOnly)
 	{
-		getTableData(&dopt, tblinfo, numTables, dopt.oids, 0);
+		getTableData(dopt, tblinfo, numTables, dopt->oids, 0);
 		buildMatViewRefreshDependencies(fout);
-		if (dopt.dataOnly)
+		if (dopt->dataOnly)
 			getTableDataFKConstraints();
 	}
 
-	if (dopt.schemaOnly && dopt.sequence_data)
-		getTableData(&dopt, tblinfo, numTables, dopt.oids, RELKIND_SEQUENCE);
+	if (dopt->schemaOnly && dopt->sequence_data)
+		getTableData(dopt, tblinfo, numTables, dopt->oids, RELKIND_SEQUENCE);
 
 	/*
 	 * In binary-upgrade mode, we do not have to worry about the actual blob
@@ -852,7 +194,7 @@ main(int argc, char **argv)
 	 * However, we do need to collect blob information as there may be
 	 * comments or other information on blobs that we do need to dump out.
 	 */
-	if (dopt.outputBlobs || dopt.binary_upgrade)
+	if (dopt->outputBlobs || dopt->binary_upgrade)
 		getBlobs(fout);
 
 	/*
@@ -898,13 +240,13 @@ main(int argc, char **argv)
 	dumpSearchPath(fout);
 
 	/* The database items are always next, unless we don't want them at all */
-	if (dopt.outputCreateDB)
+	if (dopt->outputCreateDB)
 		dumpDatabase(fout);
-	else if (dopt.include_yb_metadata)
-		dopt.db_oid = getDatabaseOid(fout);
+	else if (dopt->include_yb_metadata)
+		dopt->db_oid = getDatabaseOid(fout);
 
 	/* Now the rearrangeable objects. */
-	for (i = 0; i < numObjs; i++)
+	for (int i = 0; i < numObjs; i++)
 		dumpDumpableObject(fout, dobjs[i]);
 
 	/*
@@ -914,30 +256,30 @@ main(int argc, char **argv)
 	ropt->filename = filename;
 
 	/* if you change this list, see dumpOptionsFromRestoreOptions */
-	ropt->dropSchema = dopt.outputClean;
-	ropt->dataOnly = dopt.dataOnly;
-	ropt->schemaOnly = dopt.schemaOnly;
-	ropt->if_exists = dopt.if_exists;
-	ropt->column_inserts = dopt.column_inserts;
-	ropt->dumpSections = dopt.dumpSections;
-	ropt->aclsSkip = dopt.aclsSkip;
-	ropt->superuser = dopt.outputSuperuser;
-	ropt->createDB = dopt.outputCreateDB;
-	ropt->noOwner = dopt.outputNoOwner;
-	ropt->noTablespace = dopt.outputNoTablespaces;
-	ropt->disable_triggers = dopt.disable_triggers;
-	ropt->use_setsessauth = dopt.use_setsessauth;
-	ropt->disable_dollar_quoting = dopt.disable_dollar_quoting;
-	ropt->dump_inserts = dopt.dump_inserts;
-	ropt->no_comments = dopt.no_comments;
-	ropt->no_publications = dopt.no_publications;
-	ropt->no_security_labels = dopt.no_security_labels;
-	ropt->no_subscriptions = dopt.no_subscriptions;
-	ropt->lockWaitTimeout = dopt.lockWaitTimeout;
-	ropt->include_everything = dopt.include_everything;
-	ropt->enable_row_security = dopt.enable_row_security;
-	ropt->sequence_data = dopt.sequence_data;
-	ropt->binary_upgrade = dopt.binary_upgrade;
+	ropt->dropSchema = dopt->outputClean;
+	ropt->dataOnly = dopt->dataOnly;
+	ropt->schemaOnly = dopt->schemaOnly;
+	ropt->if_exists = dopt->if_exists;
+	ropt->column_inserts = dopt->column_inserts;
+	ropt->dumpSections = dopt->dumpSections;
+	ropt->aclsSkip = dopt->aclsSkip;
+	ropt->superuser = dopt->outputSuperuser;
+	ropt->createDB = dopt->outputCreateDB;
+	ropt->noOwner = dopt->outputNoOwner;
+	ropt->noTablespace = dopt->outputNoTablespaces;
+	ropt->disable_triggers = dopt->disable_triggers;
+	ropt->use_setsessauth = dopt->use_setsessauth;
+	ropt->disable_dollar_quoting = dopt->disable_dollar_quoting;
+	ropt->dump_inserts = dopt->dump_inserts;
+	ropt->no_comments = dopt->no_comments;
+	ropt->no_publications = dopt->no_publications;
+	ropt->no_security_labels = dopt->no_security_labels;
+	ropt->no_subscriptions = dopt->no_subscriptions;
+	ropt->lockWaitTimeout = dopt->lockWaitTimeout;
+	ropt->include_everything = dopt->include_everything;
+	ropt->enable_row_security = dopt->enable_row_security;
+	ropt->sequence_data = dopt->sequence_data;
+	ropt->binary_upgrade = dopt->binary_upgrade;
 
 	if (compressLevel == -1)
 		ropt->compression = 0;
@@ -946,7 +288,7 @@ main(int argc, char **argv)
 
 	ropt->suppressDumpWarnings = true;	/* We've already shown them */
 
-	SetArchiveOptions(fout, &dopt, ropt);
+	SetArchiveOptions(fout, dopt, ropt);
 
 	/* Mark which entries should be output */
 	ProcessArchiveRestoreOptions(fout);
@@ -972,92 +314,22 @@ main(int argc, char **argv)
 	CloseArchive(fout);
 
 #ifndef DISABLE_YB_EXTENTIONS
-	if (dopt.include_yb_metadata)
+	if (dopt->include_yb_metadata)
 		YBCShutdownPgGateBackend();
 #endif  /* DISABLE_YB_EXTENTIONS */
-
-	exit_nicely(0);
 }
 
 
-static void
-help(const char *progname)
-{
-	printf(_("%s dumps a database as a text file or to other formats.\n\n"), progname);
-	printf(_("Usage:\n"));
-	printf(_("  %s [OPTION]... [DBNAME]\n"), progname);
-
-	printf(_("\nGeneral options:\n"));
-	printf(_("  -f, --file=FILENAME          output file or directory name\n"));
-	printf(_("  -F, --format=c|d|t|p         output file format (custom, directory, tar,\n"
-			 "                               plain text (default))\n"));
-	printf(_("  -j, --jobs=NUM               use this many parallel jobs to dump\n"));
-	printf(_("  -v, --verbose                verbose mode\n"));
-	printf(_("  -V, --version                output version information, then exit\n"));
-	printf(_("  -Z, --compress=0-9           compression level for compressed formats\n"));
-	printf(_("  --lock-wait-timeout=TIMEOUT  fail after waiting TIMEOUT for a table lock\n"));
-	printf(_("  --no-sync                    do not wait for changes to be written safely to disk\n"));
-	printf(_("  -?, --help                   show this help, then exit\n"));
-
-	printf(_("\nOptions controlling the output content:\n"));
-	printf(_("  -a, --data-only              dump only the data, not the schema\n"));
-	printf(_("  -b, --blobs                  include large objects in dump\n"));
-	printf(_("  -B, --no-blobs               exclude large objects in dump\n"));
-	printf(_("  -c, --clean                  clean (drop) database objects before recreating\n"));
-	printf(_("  -C, --create                 include commands to create database in dump\n"));
-	printf(_("  -E, --encoding=ENCODING      dump the data in encoding ENCODING\n"));
-	printf(_("  -n, --schema=SCHEMA          dump the named schema(s) only\n"));
-	printf(_("  -N, --exclude-schema=SCHEMA  do NOT dump the named schema(s)\n"));
-	printf(_("  -o, --oids                   include OIDs in dump\n"));
-	printf(_("  -O, --no-owner               skip restoration of object ownership in\n"
-			 "                               plain-text format\n"));
-	printf(_("  -s, --schema-only            dump only the schema, no data\n"));
-	printf(_("  -S, --superuser=NAME         superuser user name to use in plain-text format\n"));
-	printf(_("  -t, --table=TABLE            dump the named table(s) only\n"));
-	printf(_("  -T, --exclude-table=TABLE    do NOT dump the named table(s)\n"));
-	printf(_("  -x, --no-privileges          do not dump privileges (grant/revoke)\n"));
-	printf(_("  --binary-upgrade             for use by upgrade utilities only\n"));
-	printf(_("  --column-inserts             dump data as INSERT commands with column names\n"));
-	printf(_("  --disable-dollar-quoting     disable dollar quoting, use SQL standard quoting\n"));
-	printf(_("  --disable-triggers           disable triggers during data-only restore\n"));
-	printf(_("  --enable-row-security        enable row security (dump only content user has\n"
-			 "                               access to)\n"));
-	printf(_("  --exclude-table-data=TABLE   do NOT dump data for the named table(s)\n"));
-	printf(_("  --if-exists                  use IF EXISTS when dropping objects\n"));
-	printf(_("  --inserts                    dump data as INSERT commands, rather than COPY\n"));
-	printf(_("  --load-via-partition-root    load partitions via the root table\n"));
-	printf(_("  --no-comments                do not dump comments\n"));
-	printf(_("  --no-publications            do not dump publications\n"));
-	printf(_("  --no-security-labels         do not dump security label assignments\n"));
-	printf(_("  --no-subscriptions           do not dump subscriptions\n"));
-	printf(_("  --no-synchronized-snapshots  do not use synchronized snapshots in parallel jobs\n"));
-	printf(_("  --no-tablespaces             do not dump tablespace assignments\n"));
-	printf(_("  --no-unlogged-table-data     do not dump unlogged table data\n"));
-	printf(_("  --quote-all-identifiers      quote all identifiers, even if not key words\n"));
-	printf(_("  --section=SECTION            dump named section (pre-data, data, or post-data)\n"));
-	printf(_("  --serializable-deferrable    wait until the dump can run without anomalies\n"));
-	printf(_("  --snapshot=SNAPSHOT          use given snapshot for the dump\n"));
-	printf(_("  --strict-names               require table and/or schema include patterns to\n"
-			 "                               match at least one entity each\n"));
-	printf(_("  --use-set-session-authorization\n"
-			 "                               use SET SESSION AUTHORIZATION commands instead of\n"
-			 "                               ALTER OWNER commands to set ownership\n"));
-
-	printf(_("\nConnection options:\n"));
-	printf(_("  -d, --dbname=DBNAME      database to dump\n"));
-	printf(_("  -h, --host=HOSTNAME      database server host or socket directory\n"));
-	printf(_("  -p, --port=PORT          database server port number\n"));
-	printf(_("  -U, --username=NAME      connect as specified database user\n"));
-	printf(_("  -w, --no-password        never prompt for password\n"));
-	printf(_("  -W, --password           force password prompt (should happen automatically)\n"));
-	printf(_("  --role=ROLENAME          do SET ROLE before dump\n"));
-
-	printf(_("\nIf no database name is supplied, then the PGDATABASE environment\n"
-			 "variable value is used.\n\n"));
-	printf(_("Report bugs on https://github.com/YugaByte/yugabyte-db/issues/new\n"));
+void HandleYBStatus(YBCStatus status) {
+	if (status) {
+		/* Copy the message to the current memory context and free the YBCStatus. */
+		const char* msg_buf = DupYBStatusMessage(status, false);
+		YBCFreeStatus(status);
+		exit_horribly(NULL, "%s\n", msg_buf);
+	}
 }
 
-static void
+void
 setup_connection(Archive *AH, const char *dumpencoding,
 				 const char *dumpsnapshot, char *use_role)
 {
@@ -1220,7 +492,7 @@ setup_connection(Archive *AH, const char *dumpencoding,
 }
 
 /* Set up connection for a parallel worker process */
-static void
+void
 setupDumpWorker(Archive *AH)
 {
 	/*
@@ -1235,7 +507,7 @@ setupDumpWorker(Archive *AH)
 					 NULL);
 }
 
-static char *
+char *
 get_synchronized_snapshot(Archive *fout)
 {
 	char	   *query = "SELECT pg_catalog.pg_export_snapshot()";
@@ -1249,7 +521,7 @@ get_synchronized_snapshot(Archive *fout)
 	return result;
 }
 
-static ArchiveFormat
+ArchiveFormat
 parseArchiveFormat(const char *format, ArchiveMode *mode)
 {
 	ArchiveFormat archiveFormat;
@@ -1287,7 +559,7 @@ parseArchiveFormat(const char *format, ArchiveMode *mode)
  * Find the OIDs of all schemas matching the given list of patterns,
  * and append them to the given OID list.
  */
-static void
+void
 expand_schema_name_patterns(Archive *fout,
 							SimpleStringList *patterns,
 							SimpleOidList *oids,
@@ -1335,7 +607,7 @@ expand_schema_name_patterns(Archive *fout,
  * Find the OIDs of all tables matching the given list of patterns,
  * and append them to the given OID list.
  */
-static void
+void
 expand_table_name_patterns(Archive *fout,
 						   SimpleStringList *patterns, SimpleOidList *oids,
 						   bool strict_names)
@@ -1406,7 +678,7 @@ expand_table_name_patterns(Archive *fout,
  *
  * Returns true if object is an extension member, else false.
  */
-static bool
+bool
 checkExtensionMembership(DumpableObject *dobj, Archive *fout)
 {
 	ExtensionInfo *ext = findOwningExtension(dobj->catId);
@@ -1454,7 +726,7 @@ checkExtensionMembership(DumpableObject *dobj, Archive *fout)
  * selectDumpableNamespace: policy-setting subroutine
  *		Mark a namespace as to be dumped or not
  */
-static void
+void
 selectDumpableNamespace(NamespaceInfo *nsinfo, Archive *fout)
 {
 	/*
@@ -1523,7 +795,7 @@ selectDumpableNamespace(NamespaceInfo *nsinfo, Archive *fout)
  * selectDumpableTable: policy-setting subroutine
  *		Mark a table as to be dumped or not
  */
-static void
+void
 selectDumpableTable(TableInfo *tbinfo, Archive *fout)
 {
 	if (checkExtensionMembership(&tbinfo->dobj, fout))
@@ -1562,7 +834,7 @@ selectDumpableTable(TableInfo *tbinfo, Archive *fout)
  * dumpCast.  This means the flag should be set the same as for the underlying
  * object (the table or base type).
  */
-static void
+void
 selectDumpableType(TypeInfo *tyinfo, Archive *fout)
 {
 	/* skip complex types, except for standalone composite types */
@@ -1607,7 +879,7 @@ selectDumpableType(TypeInfo *tyinfo, Archive *fout)
  * Otherwise dump if we are dumping "everything".  Note that dataOnly
  * and aclsSkip are checked separately.
  */
-static void
+void
 selectDumpableDefaultACL(DefaultACLInfo *dinfo, DumpOptions *dopt)
 {
 	/* Default ACLs can't be extension members */
@@ -1629,7 +901,7 @@ selectDumpableDefaultACL(DefaultACLInfo *dinfo, DumpOptions *dopt)
  * casts from built-in ones, we must resort to checking whether the cast's
  * OID is in the range reserved for initdb.
  */
-static void
+void
 selectDumpableCast(CastInfo *cast, Archive *fout)
 {
 	if (checkExtensionMembership(&cast->dobj, fout))
@@ -1654,7 +926,7 @@ selectDumpableCast(CastInfo *cast, Archive *fout)
  * identify built-in languages, we must resort to checking whether the
  * language's OID is in the range reserved for initdb.
  */
-static void
+void
 selectDumpableProcLang(ProcLangInfo *plang, Archive *fout)
 {
 	if (checkExtensionMembership(&plang->dobj, fout))
@@ -1687,7 +959,7 @@ selectDumpableProcLang(ProcLangInfo *plang, Archive *fout)
  * built-in access methods, we must resort to checking whether the
  * method's OID is in the range reserved for initdb.
  */
-static void
+void
 selectDumpableAccessMethod(AccessMethodInfo *method, Archive *fout)
 {
 	if (checkExtensionMembership(&method->dobj, fout))
@@ -1714,7 +986,7 @@ selectDumpableAccessMethod(AccessMethodInfo *method, Archive *fout)
  * We dump all user-added extensions by default, or none of them if
  * include_everything is false (i.e., a --schema or --table switch was given).
  */
-static void
+void
 selectDumpableExtension(ExtensionInfo *extinfo, DumpOptions *dopt)
 {
 	/*
@@ -1737,7 +1009,7 @@ selectDumpableExtension(ExtensionInfo *extinfo, DumpOptions *dopt)
  * Publication tables have schemas, but those are ignored in decision making,
  * because publications are only dumped when we are dumping everything.
  */
-static void
+void
 selectDumpablePublicationTable(DumpableObject *dobj, Archive *fout)
 {
 	if (checkExtensionMembership(dobj, fout))
@@ -1753,7 +1025,7 @@ selectDumpablePublicationTable(DumpableObject *dobj, Archive *fout)
  *
  * Use this only for object types without a special-case routine above.
  */
-static void
+void
 selectDumpableObject(DumpableObject *dobj, Archive *fout)
 {
 	if (checkExtensionMembership(dobj, fout))
@@ -1776,7 +1048,7 @@ selectDumpableObject(DumpableObject *dobj, Archive *fout)
  *	  to be dumped.
  */
 
-static int
+int
 dumpTableData_copy(Archive *fout, void *dcontext)
 {
 	TableDataInfo *tdinfo = (TableDataInfo *) dcontext;
@@ -1939,7 +1211,7 @@ dumpTableData_copy(Archive *fout, void *dcontext)
  * pg_backup_db.c's ExecuteSimpleCommands(), which will not handle comments,
  * E'' strings, or dollar-quoted strings.  So don't emit anything like that.
  */
-static int
+int
 dumpTableData_insert(Archive *fout, void *dcontext)
 {
 	TableDataInfo *tdinfo = (TableDataInfo *) dcontext;
@@ -2117,7 +1389,7 @@ dumpTableData_insert(Archive *fout, void *dcontext)
  * getRootTableInfo:
  *     get the root TableInfo for the given partition table.
  */
-static TableInfo *
+TableInfo *
 getRootTableInfo(TableInfo *tbinfo)
 {
 	TableInfo  *parentTbinfo;
@@ -2141,7 +1413,7 @@ getRootTableInfo(TableInfo *tbinfo)
  *
  * Actually, this just makes an ArchiveEntry for the table contents.
  */
-static void
+void
 dumpTableData(Archive *fout, TableDataInfo *tdinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -2212,7 +1484,7 @@ dumpTableData(Archive *fout, TableDataInfo *tdinfo)
  * Actually, this just makes an ArchiveEntry for the REFRESH MATERIALIZED VIEW
  * statement.
  */
-static void
+void
 refreshMatViewData(Archive *fout, TableDataInfo *tdinfo)
 {
 	TableInfo  *tbinfo = tdinfo->tdtable;
@@ -2253,7 +1525,7 @@ refreshMatViewData(Archive *fout, TableDataInfo *tdinfo)
  * getTableData -
  *	  set up dumpable objects representing the contents of tables
  */
-static void
+void
 getTableData(DumpOptions *dopt, TableInfo *tblinfo, int numTables, bool oids, char relkind)
 {
 	int			i;
@@ -2272,7 +1544,7 @@ getTableData(DumpOptions *dopt, TableInfo *tblinfo, int numTables, bool oids, ch
  * Note: we make a TableDataInfo if and only if we are going to dump the
  * table data; the "dump" flag in such objects isn't used.
  */
-static void
+void
 makeTableDataInfo(DumpOptions *dopt, TableInfo *tbinfo, bool oids)
 {
 	TableDataInfo *tdinfo;
@@ -2338,7 +1610,7 @@ makeTableDataInfo(DumpOptions *dopt, TableInfo *tbinfo, bool oids)
  * This must be called after all the objects are created, but before they are
  * sorted.
  */
-static void
+void
 buildMatViewRefreshDependencies(Archive *fout)
 {
 	PQExpBuffer query;
@@ -2453,7 +1725,7 @@ buildMatViewRefreshDependencies(Archive *fout)
  * self-references this may be impossible; we'll detect and complain about
  * that during the dependency sorting step.)
  */
-static void
+void
 getTableDataFKConstraints(void)
 {
 	DumpableObject **dobjs;
@@ -2506,7 +1778,7 @@ getTableDataFKConstraints(void)
  *	This function assumes all conislocal flags were initialized to true.
  *	It clears the flag on anything that seems to be inherited.
  */
-static void
+void
 guessConstraintInheritance(TableInfo *tblinfo, int numTables)
 {
 	int			i,
@@ -2649,7 +1921,7 @@ queryDatabaseData(Archive *fout, PQExpBuffer dbQry)
 	return ExecuteSqlQueryForSingleRow(fout, dbQry->data);
 }
 
-static Oid
+Oid
 getDatabaseOid(Archive *fout)
 {
 	if (g_verbose)
@@ -2669,7 +1941,7 @@ getDatabaseOid(Archive *fout)
  * dumpDatabase:
  *	dump the database definition
  */
-static void
+void
 dumpDatabase(Archive *fout)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -3042,7 +2314,7 @@ dumpDatabase(Archive *fout)
  * Collect any database-specific or role-and-database-specific SET options
  * for this database, and append them to outbuf.
  */
-static void
+void
 dumpDatabaseConfig(Archive *AH, PQExpBuffer outbuf,
 				   const char *dbname, Oid dboid)
 {
@@ -3113,7 +2385,7 @@ dumpDatabaseConfig(Archive *AH, PQExpBuffer outbuf,
 /*
  * dumpEncoding: put the correct encoding into the archive
  */
-static void
+void
 dumpEncoding(Archive *AH)
 {
 	const char *encname = pg_encoding_to_char(AH->encoding);
@@ -3140,7 +2412,7 @@ dumpEncoding(Archive *AH)
 /*
  * dumpStdStrings: put the correct escape string behavior into the archive
  */
-static void
+void
 dumpStdStrings(Archive *AH)
 {
 	const char *stdstrings = AH->std_strings ? "on" : "off";
@@ -3166,7 +2438,7 @@ dumpStdStrings(Archive *AH)
 /*
  * dumpSearchPath: record the active search_path in the archive
  */
-static void
+void
 dumpSearchPath(Archive *AH)
 {
 	PQExpBuffer qry = createPQExpBuffer();
@@ -3231,7 +2503,7 @@ dumpSearchPath(Archive *AH)
  * getBlobs:
  *	Collect schema-level data about large objects
  */
-static void
+void
 getBlobs(Archive *fout)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -3374,7 +2646,7 @@ getBlobs(Archive *fout)
  *
  * dump the definition (metadata) of the given large object
  */
-static void
+void
 dumpBlob(Archive *fout, BlobInfo *binfo)
 {
 	PQExpBuffer cquery = createPQExpBuffer();
@@ -3425,7 +2697,7 @@ dumpBlob(Archive *fout, BlobInfo *binfo)
  * dumpBlobs:
  *	dump the data contents of all large objects
  */
-static int
+int
 dumpBlobs(Archive *fout, void *arg)
 {
 	const char *blobQry;
@@ -3658,7 +2930,7 @@ getPolicies(Archive *fout, TableInfo tblinfo[], int numTables)
  * dumpPolicy
  *	  dump the definition of the given policy
  */
-static void
+void
 dumpPolicy(Archive *fout, PolicyInfo *polinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -3858,7 +3130,7 @@ getPublications(Archive *fout)
  * dumpPublication
  *	  dump the definition of the given publication
  */
-static void
+void
 dumpPublication(Archive *fout, PublicationInfo *pubinfo)
 {
 	PQExpBuffer delq;
@@ -4039,7 +3311,7 @@ getPublicationTables(Archive *fout, TableInfo tblinfo[], int numTables)
  * dumpPublicationTable
  *	  dump the definition of the given publication table mapping
  */
-static void
+void
 dumpPublicationTable(Archive *fout, PublicationRelInfo *pubrinfo)
 {
 	TableInfo  *tbinfo = pubrinfo->pubtable;
@@ -4079,7 +3351,7 @@ dumpPublicationTable(Archive *fout, PublicationRelInfo *pubrinfo)
 /*
  * Is the currently connected user a superuser?
  */
-static bool
+bool
 is_superuser(Archive *fout)
 {
 	ArchiveHandle *AH = (ArchiveHandle *) fout;
@@ -4198,7 +3470,7 @@ getSubscriptions(Archive *fout)
  * dumpSubscription
  *	  dump the definition of the given subscription
  */
-static void
+void
 dumpSubscription(Archive *fout, SubscriptionInfo *subinfo)
 {
 	PQExpBuffer delq;
@@ -4284,7 +3556,7 @@ dumpSubscription(Archive *fout, SubscriptionInfo *subinfo)
 	free(qsubname);
 }
 
-static void
+void
 binary_upgrade_set_type_oids_by_type_oid(Archive *fout,
 										 PQExpBuffer upgrade_buffer,
 										 Oid pg_type_oid,
@@ -4353,7 +3625,7 @@ binary_upgrade_set_type_oids_by_type_oid(Archive *fout,
 	destroyPQExpBuffer(upgrade_query);
 }
 
-static bool
+bool
 binary_upgrade_set_type_oids_by_rel_oid(Archive *fout,
 										PQExpBuffer upgrade_buffer,
 										Oid pg_rel_oid)
@@ -4399,7 +3671,7 @@ binary_upgrade_set_type_oids_by_rel_oid(Archive *fout,
 	return toast_set;
 }
 
-static void
+void
 binary_upgrade_set_pg_class_oids(Archive *fout,
 								 PQExpBuffer upgrade_buffer, Oid pg_class_oid,
 								 bool is_index)
@@ -4469,7 +3741,7 @@ binary_upgrade_set_pg_class_oids(Archive *fout,
  * For somewhat historical reasons, objname should already be quoted,
  * but not objnamespace (if any).
  */
-static void
+void
 binary_upgrade_extension_member(PQExpBuffer upgrade_buffer,
 								DumpableObject *dobj,
 								const char *objtype,
@@ -4644,7 +3916,7 @@ getNamespaces(Archive *fout, int *numNamespaces)
  * findNamespace:
  *		given a namespace OID, look up the info read by getNamespaces
  */
-static NamespaceInfo *
+NamespaceInfo *
 findNamespace(Archive *fout, Oid nsoid)
 {
 	NamespaceInfo *nsinfo;
@@ -7322,7 +6594,7 @@ getConstraints(Archive *fout, TableInfo tblinfo[], int numTables)
  *
  * Get info about constraints on a domain.
  */
-static void
+void
 getDomainConstraints(Archive *fout, TypeInfo *tyinfo)
 {
 	int			i;
@@ -8080,7 +7352,7 @@ getCasts(Archive *fout, int *numCasts)
 	return castinfo;
 }
 
-static char *
+char *
 get_language_name(Archive *fout, Oid langid)
 {
 	PQExpBuffer query;
@@ -9509,7 +8781,7 @@ getDefaultACLs(Archive *fout, int *numDefaultACLs)
  * after dependency sorting occurs.  This routine should be called just after
  * calling ArchiveEntry() for the specified object.
  */
-static void
+void
 dumpComment(Archive *fout, const char *type, const char *name,
 			const char *namespace, const char *owner,
 			CatalogId catalogId, int subid, DumpId dumpId)
@@ -9586,7 +8858,7 @@ dumpComment(Archive *fout, const char *type, const char *name,
  * As above, but dump comments for both the specified table (or view)
  * and its columns.
  */
-static void
+void
 dumpTableComment(Archive *fout, TableInfo *tbinfo,
 				 const char *reltypename)
 {
@@ -9683,7 +8955,7 @@ dumpTableComment(Archive *fout, TableInfo *tbinfo,
  * objsubid values associated with the given classoid/objoid are found with
  * one search.
  */
-static int
+int
 findComments(Archive *fout, Oid classoid, Oid objoid,
 			 CommentItem **items)
 {
@@ -9767,7 +9039,7 @@ findComments(Archive *fout, Oid classoid, Oid objoid,
  *
  * The table is sorted by classoid/objid/objsubid for speed in lookup.
  */
-static int
+int
 collectComments(Archive *fout, CommentItem **items)
 {
 	PGresult   *res;
@@ -9820,7 +9092,7 @@ collectComments(Archive *fout, CommentItem **items)
  * This routine and its subsidiaries are responsible for creating
  * ArchiveEntries (TOC objects) for each object to be dumped.
  */
-static void
+void
 dumpDumpableObject(Archive *fout, DumpableObject *dobj)
 {
 	switch (dobj->objType)
@@ -9968,7 +9240,7 @@ dumpDumpableObject(Archive *fout, DumpableObject *dobj)
  * dumpNamespace
  *	  writes out to fout the queries to recreate a user-defined namespace
  */
-static void
+void
 dumpNamespace(Archive *fout, NamespaceInfo *nspinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -10030,7 +9302,7 @@ dumpNamespace(Archive *fout, NamespaceInfo *nspinfo)
  * dumpExtension
  *	  writes out to fout the queries to recreate an extension
  */
-static void
+void
 dumpExtension(Archive *fout, ExtensionInfo *extinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -10160,7 +9432,7 @@ dumpExtension(Archive *fout, ExtensionInfo *extinfo)
  * dumpType
  *	  writes out to fout the queries to recreate a user-defined type
  */
-static void
+void
 dumpType(Archive *fout, TypeInfo *tyinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -10191,7 +9463,7 @@ dumpType(Archive *fout, TypeInfo *tyinfo)
  * dumpEnumType
  *	  writes out to fout the queries to recreate a user-defined enum type
  */
-static void
+void
 dumpEnumType(Archive *fout, TypeInfo *tyinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -10320,7 +9592,7 @@ dumpEnumType(Archive *fout, TypeInfo *tyinfo)
  * dumpRangeType
  *	  writes out to fout the queries to recreate a user-defined range type
  */
-static void
+void
 dumpRangeType(Archive *fout, TypeInfo *tyinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -10452,7 +9724,7 @@ dumpRangeType(Archive *fout, TypeInfo *tyinfo)
  * circular dependencies.  An undefined type shouldn't ever have anything
  * depending on it.
  */
-static void
+void
 dumpUndefinedType(Archive *fout, TypeInfo *tyinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -10518,7 +9790,7 @@ dumpUndefinedType(Archive *fout, TypeInfo *tyinfo)
  * dumpBaseType
  *	  writes out to fout the queries to recreate a user-defined base type
  */
-static void
+void
 dumpBaseType(Archive *fout, TypeInfo *tyinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -10802,7 +10074,7 @@ dumpBaseType(Archive *fout, TypeInfo *tyinfo)
  * dumpDomain
  *	  writes out to fout the queries to recreate a user-defined domain
  */
-static void
+void
 dumpDomain(Archive *fout, TypeInfo *tyinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -10977,7 +10249,7 @@ dumpDomain(Archive *fout, TypeInfo *tyinfo)
  *	  writes out to fout the queries to recreate a user-defined stand-alone
  *	  composite type
  */
-static void
+void
 dumpCompositeType(Archive *fout, TypeInfo *tyinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -11188,7 +10460,7 @@ dumpCompositeType(Archive *fout, TypeInfo *tyinfo)
  *	  writes out to fout the queries to recreate comments on the columns of
  *	  a user-defined stand-alone composite type
  */
-static void
+void
 dumpCompositeTypeColComments(Archive *fout, TypeInfo *tyinfo)
 {
 	CommentItem *comments;
@@ -11302,7 +10574,7 @@ dumpCompositeTypeColComments(Archive *fout, TypeInfo *tyinfo)
  *
  * We dump a shell definition in advance of the I/O functions for the type.
  */
-static void
+void
 dumpShellType(Archive *fout, ShellTypeInfo *stinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -11350,7 +10622,7 @@ dumpShellType(Archive *fout, ShellTypeInfo *stinfo)
  *		  writes out to fout the queries to recreate a user-defined
  *		  procedural language
  */
-static void
+void
 dumpProcLang(Archive *fout, ProcLangInfo *plang)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -11482,7 +10754,7 @@ dumpProcLang(Archive *fout, ProcLangInfo *plang)
  * the argument list.  Note, however, that pg_get_function_arguments
  * does not special-case zero-argument aggregates.
  */
-static char *
+char *
 format_function_arguments(FuncInfo *finfo, char *funcargs, bool is_agg)
 {
 	PQExpBufferData fn;
@@ -11507,7 +10779,7 @@ format_function_arguments(FuncInfo *finfo, char *funcargs, bool is_agg)
  *
  * Any or all of allargtypes, argmodes, argnames may be NULL.
  */
-static char *
+char *
 format_function_arguments_old(Archive *fout,
 							  FuncInfo *finfo, int nallargs,
 							  char **allargtypes,
@@ -11577,7 +10849,7 @@ format_function_arguments_old(Archive *fout,
  * If honor_quotes is false then the function name is never quoted.
  * This is appropriate for use in TOC tags, but not in SQL commands.
  */
-static char *
+char *
 format_function_signature(Archive *fout, FuncInfo *finfo, bool honor_quotes)
 {
 	PQExpBufferData fn;
@@ -11609,7 +10881,7 @@ format_function_signature(Archive *fout, FuncInfo *finfo, bool honor_quotes)
  * dumpFunc:
  *	  dump out one function
  */
-static void
+void
 dumpFunc(Archive *fout, FuncInfo *finfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -12166,7 +11438,7 @@ dumpFunc(Archive *fout, FuncInfo *finfo)
 /*
  * Dump a user-defined cast
  */
-static void
+void
 dumpCast(Archive *fout, CastInfo *cast)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -12275,7 +11547,7 @@ dumpCast(Archive *fout, CastInfo *cast)
 /*
  * Dump a transform
  */
-static void
+void
 dumpTransform(Archive *fout, TransformInfo *transform)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -12404,7 +11676,7 @@ dumpTransform(Archive *fout, TransformInfo *transform)
  * dumpOpr
  *	  write out a single operator definition
  */
-static void
+void
 dumpOpr(Archive *fout, OprInfo *oprinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -12624,7 +11896,7 @@ dumpOpr(Archive *fout, OprInfo *oprinfo)
  * The input is a REGPROCEDURE display; we have to strip the argument-types
  * part.
  */
-static char *
+char *
 convertRegProcReference(Archive *fout, const char *proc)
 {
 	char	   *name;
@@ -12665,7 +11937,7 @@ convertRegProcReference(Archive *fout, const char *proc)
  * to wrong results in corner cases, such as if an operator and its negator
  * are in different schemas.
  */
-static char *
+char *
 getFormattedOperatorName(Archive *fout, const char *oproid)
 {
 	OprInfo    *oprInfo;
@@ -12695,7 +11967,7 @@ getFormattedOperatorName(Archive *fout, const char *oproid)
  * caller should ensure we are in the proper schema, because the results
  * are search path dependent!
  */
-static char *
+char *
 convertTSFunction(Archive *fout, Oid funcOid)
 {
 	char	   *result;
@@ -12717,7 +11989,7 @@ convertTSFunction(Archive *fout, Oid funcOid)
  * dumpAccessMethod
  *	  write out a single access method definition
  */
-static void
+void
 dumpAccessMethod(Archive *fout, AccessMethodInfo *aminfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -12785,7 +12057,7 @@ dumpAccessMethod(Archive *fout, AccessMethodInfo *aminfo)
  * dumpOpclass
  *	  write out a single operator class definition
  */
-static void
+void
 dumpOpclass(Archive *fout, OpclassInfo *opcinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -13158,7 +12430,7 @@ dumpOpclass(Archive *fout, OpclassInfo *opcinfo)
  * Note: this also dumps any "loose" operator members that aren't bound to a
  * specific opclass within the opfamily.
  */
-static void
+void
 dumpOpfamily(Archive *fout, OpfamilyInfo *opfinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -13422,7 +12694,7 @@ dumpOpfamily(Archive *fout, OpfamilyInfo *opfinfo)
  * dumpCollation
  *	  write out a single collation definition
  */
-static void
+void
 dumpCollation(Archive *fout, CollInfo *collinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -13564,7 +12836,7 @@ dumpCollation(Archive *fout, CollInfo *collinfo)
  * dumpConversion
  *	  write out a single conversion definition
  */
-static void
+void
 dumpConversion(Archive *fout, ConvInfo *convinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -13661,7 +12933,7 @@ dumpConversion(Archive *fout, ConvInfo *convinfo)
  * The argument type names are qualified if needed.  The aggregate name
  * is never qualified.
  */
-static char *
+char *
 format_aggregate_signature(AggInfo *agginfo, Archive *fout, bool honor_quotes)
 {
 	PQExpBufferData buf;
@@ -13699,7 +12971,7 @@ format_aggregate_signature(AggInfo *agginfo, Archive *fout, bool honor_quotes)
  * dumpAgg
  *	  write out a single aggregate definition
  */
-static void
+void
 dumpAgg(Archive *fout, AggInfo *agginfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -14177,7 +13449,7 @@ dumpAgg(Archive *fout, AggInfo *agginfo)
  * dumpTSParser
  *	  write out a single text search parser
  */
-static void
+void
 dumpTSParser(Archive *fout, TSParserInfo *prsinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -14243,7 +13515,7 @@ dumpTSParser(Archive *fout, TSParserInfo *prsinfo)
  * dumpTSDictionary
  *	  write out a single text search dictionary
  */
-static void
+void
 dumpTSDictionary(Archive *fout, TSDictInfo *dictinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -14324,7 +13596,7 @@ dumpTSDictionary(Archive *fout, TSDictInfo *dictinfo)
  * dumpTSTemplate
  *	  write out a single text search template
  */
-static void
+void
 dumpTSTemplate(Archive *fout, TSTemplateInfo *tmplinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -14384,7 +13656,7 @@ dumpTSTemplate(Archive *fout, TSTemplateInfo *tmplinfo)
  * dumpTSConfig
  *	  write out a single text search configuration
  */
-static void
+void
 dumpTSConfig(Archive *fout, TSConfigInfo *cfginfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -14505,7 +13777,7 @@ dumpTSConfig(Archive *fout, TSConfigInfo *cfginfo)
  * dumpForeignDataWrapper
  *	  write out a single foreign-data wrapper definition
  */
-static void
+void
 dumpForeignDataWrapper(Archive *fout, FdwInfo *fdwinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -14579,7 +13851,7 @@ dumpForeignDataWrapper(Archive *fout, FdwInfo *fdwinfo)
  * dumpForeignServer
  *	  write out a foreign server definition
  */
-static void
+void
 dumpForeignServer(Archive *fout, ForeignServerInfo *srvinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -14681,7 +13953,7 @@ dumpForeignServer(Archive *fout, ForeignServerInfo *srvinfo)
  * server handed to this routine. Should be called after ArchiveEntry()
  * for the server.
  */
-static void
+void
 dumpUserMappings(Archive *fout,
 				 const char *servername, const char *namespace,
 				 const char *owner,
@@ -14776,7 +14048,7 @@ dumpUserMappings(Archive *fout,
 /*
  * Write out default privileges information
  */
-static void
+void
 dumpDefaultACL(Archive *fout, DefaultACLInfo *daclinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -14876,7 +14148,7 @@ dumpDefaultACL(Archive *fout, DefaultACLInfo *daclinfo)
  * pg_init_privs as that object's initial privileges.
  *----------
  */
-static void
+void
 dumpACL(Archive *fout, CatalogId objCatId, DumpId objDumpId,
 		const char *type, const char *name, const char *subname,
 		const char *nspname, const char *owner,
@@ -14964,7 +14236,7 @@ dumpACL(Archive *fout, CatalogId objCatId, DumpId objDumpId,
  * after dependency sorting occurs.  This routine should be called just after
  * calling ArchiveEntry() for the specified object.
  */
-static void
+void
 dumpSecLabel(Archive *fout, const char *type, const char *name,
 			 const char *namespace, const char *owner,
 			 CatalogId catalogId, int subid, DumpId dumpId)
@@ -15038,7 +14310,7 @@ dumpSecLabel(Archive *fout, const char *type, const char *name,
  * As above, but dump security label for both the specified table (or view)
  * and its columns.
  */
-static void
+void
 dumpTableSecLabel(Archive *fout, TableInfo *tbinfo, const char *reltypename)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -15120,7 +14392,7 @@ dumpTableSecLabel(Archive *fout, TableInfo *tbinfo, const char *reltypename)
  * All the objsubid values associated with the given classoid/objoid are
  * found with one search.
  */
-static int
+int
 findSecLabels(Archive *fout, Oid classoid, Oid objoid, SecLabelItem **items)
 {
 	/* static storage for table of security labels */
@@ -15207,7 +14479,7 @@ findSecLabels(Archive *fout, Oid classoid, Oid objoid, SecLabelItem **items)
  *
  * The table is sorted by classoid/objid/objsubid for speed in lookup.
  */
-static int
+int
 collectSecLabels(Archive *fout, SecLabelItem **items)
 {
 	PGresult   *res;
@@ -15261,7 +14533,7 @@ collectSecLabels(Archive *fout, SecLabelItem **items)
  * dumpTable
  *	  write out to fout the declarations (not data) of a user-defined table
  */
-static void
+void
 dumpTable(Archive *fout, TableInfo *tbinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -15485,7 +14757,7 @@ createDummyViewAsClause(Archive *fout, TableInfo *tbinfo)
  * dumpTableSchema
  *	  write the declaration (not data) of one user-defined table or view
  */
-static void
+void
 dumpTableSchema(Archive *fout, TableInfo *tbinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -16304,7 +15576,7 @@ dumpTableSchema(Archive *fout, TableInfo *tbinfo)
 /*
  * dumpAttrDef --- dump an attribute's default-value declaration
  */
-static void
+void
 dumpAttrDef(Archive *fout, AttrDefInfo *adinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -16365,7 +15637,7 @@ dumpAttrDef(Archive *fout, AttrDefInfo *adinfo)
  * if a system attribute number is supplied, we have to fake it.
  * We also do a little bit of bounds checking for safety's sake.
  */
-static const char *
+const char *
 getAttrName(int attrnum, TableInfo *tblInfo)
 {
 	if (attrnum > 0 && attrnum <= tblInfo->numatts)
@@ -16398,7 +15670,7 @@ getAttrName(int attrnum, TableInfo *tblInfo)
  * dumpIndex
  *	  write out to fout a user-defined index
  */
-static void
+void
 dumpIndex(Archive *fout, IndxInfo *indxinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -16529,7 +15801,7 @@ dumpIndex(Archive *fout, IndxInfo *indxinfo)
  * dumpIndexAttach
  *	  write out to fout a partitioned-index attachment clause
  */
-static void
+void
 dumpIndexAttach(Archive *fout, IndexAttachInfo *attachinfo)
 {
 	if (fout->dopt->dataOnly)
@@ -16562,7 +15834,7 @@ dumpIndexAttach(Archive *fout, IndexAttachInfo *attachinfo)
  * dumpStatisticsExt
  *	  write out to fout an extended statistics object
  */
-static void
+void
 dumpStatisticsExt(Archive *fout, StatsExtInfo *statsextinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -16628,7 +15900,7 @@ dumpStatisticsExt(Archive *fout, StatsExtInfo *statsextinfo)
  * dumpConstraint
  *	  write out to fout a user-defined constraint
  */
-static void
+void
 dumpConstraint(Archive *fout, ConstraintInfo *coninfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -16898,7 +16170,7 @@ dumpConstraint(Archive *fout, ConstraintInfo *coninfo)
  * depending on whether the constraint is dumped as part of CREATE TABLE
  * or as a separate ALTER command.
  */
-static void
+void
 dumpTableConstraintComment(Archive *fout, ConstraintInfo *coninfo)
 {
 	TableInfo  *tbinfo = coninfo->contable;
@@ -16930,7 +16202,7 @@ dumpTableConstraintComment(Archive *fout, ConstraintInfo *coninfo)
  * pg_database entry for the current database.  (Note: current_database()
  * requires 7.3; pg_dump requires 8.0 now.)
  */
-static Oid
+Oid
 findLastBuiltinOid_V71(Archive *fout)
 {
 	PGresult   *res;
@@ -16948,7 +16220,7 @@ findLastBuiltinOid_V71(Archive *fout)
  * dumpSequence
  *	  write the declaration (not data) of one user-defined sequence
  */
-static void
+void
 dumpSequence(Archive *fout, TableInfo *tbinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -17213,7 +16485,7 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
  * dumpSequenceData
  *	  write the data of one user-defined sequence
  */
-static void
+void
 dumpSequenceData(Archive *fout, TableDataInfo *tdinfo)
 {
 	TableInfo  *tbinfo = tdinfo->tdtable;
@@ -17266,7 +16538,7 @@ dumpSequenceData(Archive *fout, TableDataInfo *tdinfo)
  * dumpTrigger
  *	  write the declaration of one user-defined table trigger
  */
-static void
+void
 dumpTrigger(Archive *fout, TriggerInfo *tginfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -17472,7 +16744,7 @@ dumpTrigger(Archive *fout, TriggerInfo *tginfo)
  * dumpEventTrigger
  *	  write the declaration of one user-defined event trigger
  */
-static void
+void
 dumpEventTrigger(Archive *fout, EventTriggerInfo *evtinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -17557,7 +16829,7 @@ dumpEventTrigger(Archive *fout, EventTriggerInfo *evtinfo)
  * dumpRule
  *		Dump a rule
  */
-static void
+void
 dumpRule(Archive *fout, RuleInfo *rinfo)
 {
 	DumpOptions *dopt = fout->dopt;
@@ -17995,7 +17267,7 @@ processExtensionTables(Archive *fout, ExtensionInfo extinfo[],
 /*
  * getDependencies --- obtain available dependency data
  */
-static void
+void
 getDependencies(Archive *fout)
 {
 	PQExpBuffer query;
@@ -18109,7 +17381,7 @@ getDependencies(Archive *fout)
  * createBoundaryObjects - create dummy DumpableObjects to represent
  * dump section boundaries.
  */
-static DumpableObject *
+DumpableObject *
 createBoundaryObjects(void)
 {
 	DumpableObject *dobjs;
@@ -18133,7 +17405,7 @@ createBoundaryObjects(void)
  * addBoundaryDependencies - add dependencies as needed to enforce the dump
  * section boundaries.
  */
-static void
+void
 addBoundaryDependencies(DumpableObject **dobjs, int numObjs,
 						DumpableObject *boundaryObjs)
 {
@@ -18246,7 +17518,7 @@ addBoundaryDependencies(DumpableObject **dobjs, int numObjs,
  * DumpableObject data structures to build the correct dependencies for each
  * archive TOC item.
  */
-static void
+void
 BuildArchiveDependencies(Archive *fout)
 {
 	ArchiveHandle *AH = (ArchiveHandle *) fout;
@@ -18294,7 +17566,7 @@ BuildArchiveDependencies(Archive *fout)
 }
 
 /* Recursive search subroutine for BuildArchiveDependencies */
-static void
+void
 findDumpableDependencies(ArchiveHandle *AH, DumpableObject *dobj,
 						 DumpId **dependencies, int *nDeps, int *allocDeps)
 {
@@ -18350,7 +17622,7 @@ findDumpableDependencies(ArchiveHandle *AH, DumpableObject *dobj,
  *
  * TODO: there might be some value in caching the results.
  */
-static char *
+char *
 getFormattedTypeName(Archive *fout, Oid oid, OidOptions opts)
 {
 	char	   *result;
@@ -18390,7 +17662,7 @@ getFormattedTypeName(Archive *fout, Oid oid, OidOptions opts)
  * Special case: if there are no undropped columns in the relation, return
  * "", not an invalid "()" column list.
  */
-static const char *
+const char *
 fmtCopyColumnList(const TableInfo *ti, PQExpBuffer buffer)
 {
 	int			numatts = ti->numatts;
@@ -18421,7 +17693,7 @@ fmtCopyColumnList(const TableInfo *ti, PQExpBuffer buffer)
 /*
  * Check if a reloptions array is nonempty.
  */
-static bool
+bool
 nonemptyReloptions(const char *reloptions)
 {
 	/* Don't want to print it if it's just "{}" */
@@ -18433,7 +17705,7 @@ nonemptyReloptions(const char *reloptions)
  *
  * "prefix" is prepended to the option names; typically it's "" or "toast.".
  */
-static void
+void
 appendReloptionsArrayAH(PQExpBuffer buffer, const char *reloptions,
 						const char *prefix, Archive *fout)
 {

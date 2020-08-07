@@ -31,8 +31,8 @@ LIBS += -L$(YB_BUILD_ROOT)/lib -lyb_util
 
 all: ysql_dump pg_restore ysql_dumpall
 
-ysql_dump: pg_dump.o common.o pg_dump_sort.o $(OBJS) | submake-libpq submake-libpgport submake-libpgfeutils
-	$(CC) $(CFLAGS) pg_dump.o common.o pg_dump_sort.o $(OBJS) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -lyb_pggate -lyb_common -o $@$(X)
+ysql_dump: pg_dump_main.o pg_dump.o common.o pg_dump_sort.o $(OBJS) | submake-libpq submake-libpgport submake-libpgfeutils
+	$(CC) $(CFLAGS) pg_dump_main.o pg_dump.o common.o pg_dump_sort.o $(OBJS) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -lyb_pggate -lyb_common -o $@$(X)
 
 pg_restore: pg_restore.o $(OBJS) | submake-libpq submake-libpgport submake-libpgfeutils
 	$(CC) $(CFLAGS) pg_restore.o $(OBJS) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -o $@$(X)
@@ -58,5 +58,5 @@ uninstall:
 	rm -f $(addprefix '$(DESTDIR)$(bindir)'/, ysql_dump$(X) pg_restore$(X) ysql_dumpall$(X))
 
 clean distclean maintainer-clean:
-	rm -f pg_dump$(X) pg_restore$(X) pg_dumpall$(X) $(OBJS) pg_dump.o common.o pg_dump_sort.o pg_restore.o pg_dumpall.o
+	rm -f pg_dump$(X) pg_restore$(X) pg_dumpall$(X) $(OBJS) pg_dump_main.o pg_dump.o common.o pg_dump_sort.o pg_restore.o pg_dumpall.o
 	rm -rf tmp_check

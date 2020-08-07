@@ -16,6 +16,8 @@
 
 #include "pg_backup.h"
 
+#include "yb/common/ybc_util.h"
+
 
 #define oidcmp(x,y) ( ((x) < (y) ? -1 : ((x) > (y)) ?  1 : 0) )
 #define oideq(x,y) ( (x) == (y) )
@@ -639,6 +641,31 @@ typedef struct _extensionMemberId
 	ExtensionInfo *ext;			/* owning extension */
 } ExtensionMemberId;
 
+typedef struct
+{
+	const char *descr;			/* comment for an object */
+	Oid			classoid;		/* object class (catalog OID) */
+	Oid			objoid;			/* object OID */
+	int			objsubid;		/* subobject (table column #) */
+} CommentItem;
+
+typedef struct
+{
+	const char *provider;		/* label provider of this security label */
+	const char *label;			/* security label for an object */
+	Oid			classoid;		/* object class (catalog OID) */
+	Oid			objoid;			/* object OID */
+	int			objsubid;		/* subobject (table column #) */
+} SecLabelItem;
+
+typedef enum OidOptions
+{
+	zeroAsOpaque = 1,
+	zeroAsAny = 2,
+	zeroAsStar = 4,
+	zeroAsNone = 8
+} OidOptions;
+
 /* global decls */
 extern bool force_quotes;		/* double-quotes for identifiers flag */
 extern bool g_verbose;			/* verbose flag */
@@ -648,6 +675,167 @@ extern char g_comment_start[10];
 extern char g_comment_end[10];
 
 extern char g_opaque_type[10];	/* name for the opaque type */
+
+//
+void dump(DumpOptions *dopt,
+		  Archive *fout,
+		  ArchiveFormat archiveFormat,
+		  int numWorkers,
+		  const char *filename,
+		  int compressLevel,
+		  int plainText);
+
+void initStatics(const char *username_subquery_,
+				 Oid	g_last_builtin_oid_);
+
+void setup_connection(Archive *AH,
+				 const char *dumpencoding, const char *dumpsnapshot,
+				 char *use_role);
+ArchiveFormat parseArchiveFormat(const char *format, ArchiveMode *mode);
+void expand_schema_name_patterns(Archive *fout,
+							SimpleStringList *patterns,
+							SimpleOidList *oids,
+							bool strict_names);
+void expand_table_name_patterns(Archive *fout,
+						   SimpleStringList *patterns,
+						   SimpleOidList *oids,
+						   bool strict_names);
+NamespaceInfo *findNamespace(Archive *fout, Oid nsoid);
+void dumpTableData(Archive *fout, TableDataInfo *tdinfo);
+void refreshMatViewData(Archive *fout, TableDataInfo *tdinfo);
+void guessConstraintInheritance(TableInfo *tblinfo, int numTables);
+void dumpComment(Archive *fout, const char *type, const char *name,
+			const char *namespace, const char *owner,
+			CatalogId catalogId, int subid, DumpId dumpId);
+int findComments(Archive *fout, Oid classoid, Oid objoid,
+			 CommentItem **items);
+int	collectComments(Archive *fout, CommentItem **items);
+void dumpSecLabel(Archive *fout, const char *type, const char *name,
+			 const char *namespace, const char *owner,
+			 CatalogId catalogId, int subid, DumpId dumpId);
+int findSecLabels(Archive *fout, Oid classoid, Oid objoid,
+			  SecLabelItem **items);
+int	collectSecLabels(Archive *fout, SecLabelItem **items);
+void dumpDumpableObject(Archive *fout, DumpableObject *dobj);
+void dumpNamespace(Archive *fout, NamespaceInfo *nspinfo);
+void dumpExtension(Archive *fout, ExtensionInfo *extinfo);
+void dumpType(Archive *fout, TypeInfo *tyinfo);
+void dumpBaseType(Archive *fout, TypeInfo *tyinfo);
+void dumpEnumType(Archive *fout, TypeInfo *tyinfo);
+void dumpRangeType(Archive *fout, TypeInfo *tyinfo);
+void dumpUndefinedType(Archive *fout, TypeInfo *tyinfo);
+void dumpDomain(Archive *fout, TypeInfo *tyinfo);
+void dumpCompositeType(Archive *fout, TypeInfo *tyinfo);
+void dumpCompositeTypeColComments(Archive *fout, TypeInfo *tyinfo);
+void dumpShellType(Archive *fout, ShellTypeInfo *stinfo);
+void dumpProcLang(Archive *fout, ProcLangInfo *plang);
+void dumpFunc(Archive *fout, FuncInfo *finfo);
+void dumpCast(Archive *fout, CastInfo *cast);
+void dumpTransform(Archive *fout, TransformInfo *transform);
+void dumpOpr(Archive *fout, OprInfo *oprinfo);
+void dumpAccessMethod(Archive *fout, AccessMethodInfo *oprinfo);
+void dumpOpclass(Archive *fout, OpclassInfo *opcinfo);
+void dumpOpfamily(Archive *fout, OpfamilyInfo *opfinfo);
+void dumpCollation(Archive *fout, CollInfo *collinfo);
+void dumpConversion(Archive *fout, ConvInfo *convinfo);
+void dumpRule(Archive *fout, RuleInfo *rinfo);
+void dumpAgg(Archive *fout, AggInfo *agginfo);
+void dumpTrigger(Archive *fout, TriggerInfo *tginfo);
+void dumpEventTrigger(Archive *fout, EventTriggerInfo *evtinfo);
+void dumpTable(Archive *fout, TableInfo *tbinfo);
+void dumpTableSchema(Archive *fout, TableInfo *tbinfo);
+void dumpAttrDef(Archive *fout, AttrDefInfo *adinfo);
+void dumpSequence(Archive *fout, TableInfo *tbinfo);
+void dumpSequenceData(Archive *fout, TableDataInfo *tdinfo);
+void dumpIndex(Archive *fout, IndxInfo *indxinfo);
+void dumpIndexAttach(Archive *fout, IndexAttachInfo *attachinfo);
+void dumpStatisticsExt(Archive *fout, StatsExtInfo *statsextinfo);
+void dumpConstraint(Archive *fout, ConstraintInfo *coninfo);
+void dumpTableConstraintComment(Archive *fout, ConstraintInfo *coninfo);
+void dumpTSParser(Archive *fout, TSParserInfo *prsinfo);
+void dumpTSDictionary(Archive *fout, TSDictInfo *dictinfo);
+void dumpTSTemplate(Archive *fout, TSTemplateInfo *tmplinfo);
+void dumpTSConfig(Archive *fout, TSConfigInfo *cfginfo);
+void dumpForeignDataWrapper(Archive *fout, FdwInfo *fdwinfo);
+void dumpForeignServer(Archive *fout, ForeignServerInfo *srvinfo);
+void dumpUserMappings(Archive *fout,
+				 const char *servername, const char *namespace,
+				 const char *owner, CatalogId catalogId, DumpId dumpId);
+void dumpDefaultACL(Archive *fout, DefaultACLInfo *daclinfo);
+
+void dumpACL(Archive *fout, CatalogId objCatId, DumpId objDumpId,
+		const char *type, const char *name, const char *subname,
+		const char *nspname, const char *owner,
+		const char *acls, const char *racls,
+		const char *initacls, const char *initracls);
+
+void getDependencies(Archive *fout);
+void BuildArchiveDependencies(Archive *fout);
+void findDumpableDependencies(ArchiveHandle *AH, DumpableObject *dobj,
+						 DumpId **dependencies, int *nDeps, int *allocDeps);
+
+DumpableObject *createBoundaryObjects(void);
+void addBoundaryDependencies(DumpableObject **dobjs, int numObjs,
+						DumpableObject *boundaryObjs);
+
+void getDomainConstraints(Archive *fout, TypeInfo *tyinfo);
+void getTableData(DumpOptions *dopt, TableInfo *tblinfo, int numTables, bool oids, char relkind);
+void makeTableDataInfo(DumpOptions *dopt, TableInfo *tbinfo, bool oids);
+void buildMatViewRefreshDependencies(Archive *fout);
+void getTableDataFKConstraints(void);
+char *format_function_arguments(FuncInfo *finfo, char *funcargs,
+						  bool is_agg);
+char *format_function_arguments_old(Archive *fout,
+							  FuncInfo *finfo, int nallargs,
+							  char **allargtypes,
+							  char **argmodes,
+							  char **argnames);
+char *format_function_signature(Archive *fout,
+						  FuncInfo *finfo, bool honor_quotes);
+char *convertRegProcReference(Archive *fout,
+						const char *proc);
+char *getFormattedOperatorName(Archive *fout, const char *oproid);
+char *convertTSFunction(Archive *fout, Oid funcOid);
+Oid	findLastBuiltinOid_V71(Archive *fout);
+char *getFormattedTypeName(Archive *fout, Oid oid, OidOptions opts);
+void getBlobs(Archive *fout);
+void dumpBlob(Archive *fout, BlobInfo *binfo);
+int	dumpBlobs(Archive *fout, void *arg);
+void dumpPolicy(Archive *fout, PolicyInfo *polinfo);
+void dumpPublication(Archive *fout, PublicationInfo *pubinfo);
+void dumpPublicationTable(Archive *fout, PublicationRelInfo *pubrinfo);
+void dumpSubscription(Archive *fout, SubscriptionInfo *subinfo);
+Oid  getDatabaseOid(Archive *AH);
+void dumpDatabase(Archive *AH);
+void dumpDatabaseConfig(Archive *AH, PQExpBuffer outbuf,
+				   const char *dbname, Oid dboid);
+void dumpEncoding(Archive *AH);
+void dumpStdStrings(Archive *AH);
+void dumpSearchPath(Archive *AH);
+void binary_upgrade_set_type_oids_by_type_oid(Archive *fout,
+										 PQExpBuffer upgrade_buffer,
+										 Oid pg_type_oid,
+										 bool force_array_type);
+bool binary_upgrade_set_type_oids_by_rel_oid(Archive *fout,
+										PQExpBuffer upgrade_buffer, Oid pg_rel_oid);
+void binary_upgrade_set_pg_class_oids(Archive *fout,
+								 PQExpBuffer upgrade_buffer,
+								 Oid pg_class_oid, bool is_index);
+void binary_upgrade_extension_member(PQExpBuffer upgrade_buffer,
+								DumpableObject *dobj,
+								const char *objtype,
+								const char *objname,
+								const char *objnamespace);
+const char *getAttrName(int attrnum, TableInfo *tblInfo);
+const char *fmtCopyColumnList(const TableInfo *ti, PQExpBuffer buffer);
+bool nonemptyReloptions(const char *reloptions);
+void appendReloptionsArrayAH(PQExpBuffer buffer, const char *reloptions,
+						const char *prefix, Archive *fout);
+char *get_synchronized_snapshot(Archive *fout);
+void setupDumpWorker(Archive *AHX);
+TableInfo *getRootTableInfo(TableInfo *tbinfo);
+void HandleYBStatus(YBCStatus status);
+
 
 /*
  *	common utility functions
