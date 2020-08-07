@@ -17,11 +17,14 @@ subdir = src/backend
 top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
 
+override CPPFLAGS := -I$(libpq_srcdir) $(CPPFLAGS)
+LDFLAGS_INTERNAL += -L$(top_builddir)/src/fe_utils -lpgfeutils $(libpq_pgport)
+
 SUBDIRS = access bootstrap catalog parser commands executor foreign lib libpq \
 	main nodes optimizer partitioning port postmaster \
 	regex replication rewrite \
 	statistics storage tcop tsearch utils $(top_builddir)/src/timezone \
-	jit ybgate
+	jit ybgate $(top_builddir)/src/bin/pg_dump
 
 include $(srcdir)/common.mk
 

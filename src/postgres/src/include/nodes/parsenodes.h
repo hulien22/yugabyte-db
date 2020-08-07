@@ -3352,6 +3352,13 @@ typedef struct ReindexStmt
 	int			options;		/* Reindex options flags */
 } ReindexStmt;
 
+// temp
+typedef struct YsqlDumpStmt
+{
+	NodeTag			type;
+	const char *name; /* name of db */
+} YsqlDumpStmt;
+
 /* ----------------------
  *		BACKFILL INDEX Statement
  * ----------------------

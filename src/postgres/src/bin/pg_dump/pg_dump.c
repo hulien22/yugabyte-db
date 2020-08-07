@@ -522,7 +522,7 @@ get_synchronized_snapshot(Archive *fout)
 }
 
 ArchiveFormat
-parseArchiveFormat(const char *format, ArchiveMode *mode)
+parseArchiveFormat(const char *format, DumpArchiveMode *mode)
 {
 	ArchiveFormat archiveFormat;
 

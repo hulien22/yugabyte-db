@@ -55,6 +55,10 @@
 #include "parser/parse_coerce.h"
 #include "parser/parse_type.h"
 
+#include "yb/yql/pggate/ybc_pggate.h"
+#include "yb/yql/pggate/ybc_pggate_tool.h"
+#include "postgres/src/bin/pg_dump/pg_dump.h"
+
 /* Utility function to calculate column sorting options */
 static void
 ColumnSortingOptions(SortByDir dir, SortByNulls nulls, bool* is_desc, bool* is_nulls_first)
@@ -971,4 +975,46 @@ YBCDropIndex(Oid relationId)
 			HandleYBStatusIgnoreNotFound(YBCPgExecDropIndex(handle), &not_found);
 		}
 	}
+}
+
+void YsqlDump(YsqlDumpStmt *stmt) {
+	Archive    *fout;
+	ArchiveFormat archiveFormat = archNull;
+	int			numWorkers = 1;
+	int			compressLevel = 0;
+	int			plainText = 1;
+	const char *filename = "test.snapshot";
+	DumpOptions dopt;
+	InitDumpOptions(&dopt);
+	dopt.schemaOnly = true;
+	dopt.dbname = stmt->name;
+	dopt.serializable_deferrable = 1;
+	dopt.include_yb_metadata = 1;
+	dopt.outputCreateDB = 1;
+	dopt.pghost = DefaultHost;
+	YBCSetMasterAddresses(dopt.pghost);
+	HandleYBStatus(YBCInit("test", palloc, /* cstring_to_text_with_len_fn */ NULL));
+	HandleYBStatus(YBCInitPgGateBackend());
+
+	fout = CreateArchive(filename, archiveFormat, compressLevel, true,
+						 archModeWrite, setupDumpWorker);
+	SetArchiveOptions(fout, &dopt, NULL);
+	fout->minRemoteVersion = 80000;
+	fout->maxRemoteVersion = (PG_VERSION_NUM / 100) * 100 + 99;
+	fout->numWorkers = numWorkers;
+	ConnectDatabase(fout, dopt.dbname, dopt.pghost, NULL, NULL, TRI_DEFAULT);
+	setup_connection(fout, NULL, NULL, NULL);
+
+	dump(&dopt,
+		  fout,
+		  archiveFormat,
+		  numWorkers,
+		  filename,
+		  compressLevel,
+		  plainText);
+
+	// exit_nicely(0);
+	// ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+	// 				errmsg("%s", stmt->name)));
+
 }

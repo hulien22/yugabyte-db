@@ -54,7 +54,7 @@ static const char *modulename = gettext_noop("archiver");
 
 
 static ArchiveHandle *_allocAH(const char *FileSpec, const ArchiveFormat fmt,
-		 const int compression, bool dosync, ArchiveMode mode,
+		 const int compression, bool dosync, DumpArchiveMode mode,
 		 SetupWorkerPtrType setupWorkerPtr);
 static void _getObjectDescription(PQExpBuffer buf, TocEntry *te,
 					  ArchiveHandle *AH);
@@ -211,7 +211,7 @@ setupRestoreWorker(Archive *AHX)
 /* Public */
 Archive *
 CreateArchive(const char *FileSpec, const ArchiveFormat fmt,
-			  const int compression, bool dosync, ArchiveMode mode,
+			  const int compression, bool dosync, DumpArchiveMode mode,
 			  SetupWorkerPtrType setupDumpWorker)
 
 {
@@ -2295,7 +2295,7 @@ _discoverArchiveFormat(ArchiveHandle *AH)
  */
 static ArchiveHandle *
 _allocAH(const char *FileSpec, const ArchiveFormat fmt,
-		 const int compression, bool dosync, ArchiveMode mode,
+		 const int compression, bool dosync, DumpArchiveMode mode,
 		 SetupWorkerPtrType setupWorkerPtr)
 {
 	ArchiveHandle *AH;

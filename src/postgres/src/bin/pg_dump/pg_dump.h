@@ -15,6 +15,8 @@
 #define PG_DUMP_H
 
 #include "pg_backup.h"
+// #include "dumputils.h"
+// #include "parallel.h"
 
 #include "yb/common/ybc_util.h"
 
@@ -24,6 +26,10 @@
 #define oidle(x,y) ( (x) <= (y) )
 #define oidge(x,y) ( (x) >= (y) )
 #define oidzero(x) ( (x) == 0 )
+
+typedef struct _archiveHandle ArchiveHandle;
+typedef struct PQExpBufferData PQExpBufferData;
+typedef PQExpBufferData *PQExpBuffer;
 
 /*
  * The data structures used to store system catalog information.  Every
@@ -691,7 +697,7 @@ void initStatics(const char *username_subquery_,
 void setup_connection(Archive *AH,
 				 const char *dumpencoding, const char *dumpsnapshot,
 				 char *use_role);
-ArchiveFormat parseArchiveFormat(const char *format, ArchiveMode *mode);
+ArchiveFormat parseArchiveFormat(const char *format, DumpArchiveMode *mode);
 void expand_schema_name_patterns(Archive *fout,
 							SimpleStringList *patterns,
 							SimpleOidList *oids,

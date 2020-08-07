@@ -12,6 +12,13 @@ subdir = src/backend/commands
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
+override CPPFLAGS := -I$(libpq_srcdir) $(CPPFLAGS)
+
+# note: we need libpq only because fe_utils does
+LDFLAGS_INTERNAL += -L$(top_builddir)/src/fe_utils -lpgfeutils $(libpq_pgport)
+# $(info $$LDFLAGS_INTERNAL is [${LDFLAGS_INTERNAL}])
+LIBS += -L$(YB_BUILD_ROOT)/lib -lyb_util
+
 OBJS = amcmds.o aggregatecmds.o alter.o analyze.o async.o cluster.o comment.o \
 	collationcmds.o constraint.o conversioncmds.o copy.o createas.o \
 	dbcommands.o define.o discard.o dropcmds.o \

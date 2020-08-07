@@ -835,6 +835,13 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 			}
 			break;
 
+		case T_YsqlDumpStmt:
+			{
+				YsqlDumpStmt *stmt = (YsqlDumpStmt *) parsetree;
+				YsqlDump(stmt);
+			}
+			break;
+
 			/*
 			 * The following statements are supported by Event Triggers only
 			 * in some cases, so we "fast path" them in the other cases.
@@ -2741,6 +2748,10 @@ CreateCommandTag(Node *parsetree)
 			tag = "BACKFILL INDEX";
 			break;
 
+		case T_YsqlDumpStmt:
+			tag = "YSQLDUMP";
+			break;
+
 		case T_CreateConversionStmt:
 			tag = "CREATE CONVERSION";
 			break;
@@ -3343,6 +3354,10 @@ GetCommandLogLevel(Node *parsetree)
 
 		case T_BackfillIndexStmt:
 			lev = LOGSTMT_ALL;	/* should this be DDL? */
+			break;
+
+		case T_YsqlDumpStmt:
+			lev = LOGSTMT_ALL;
 			break;
 
 		case T_CreateConversionStmt:

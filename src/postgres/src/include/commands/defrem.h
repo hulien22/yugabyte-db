@@ -51,6 +51,7 @@ extern Oid	GetDefaultOpClass(Oid type_id, Oid am_id);
 extern Oid ResolveOpClass(List *opclass, Oid attrType,
 			   const char *accessMethodName, Oid accessMethodId);
 extern void BackfillIndex(BackfillIndexStmt *stmt);
+extern void YsqlDump(YsqlDumpStmt *stmt);
 
 /* commands/functioncmds.c */
 extern ObjectAddress CreateFunction(ParseState *pstate, CreateFunctionStmt *stmt);

@@ -43,12 +43,12 @@ typedef enum _archiveFormat
 	archDirectory = 5
 } ArchiveFormat;
 
-typedef enum _archiveMode
+typedef enum _dumpArchiveMode
 {
 	archModeAppend,
 	archModeWrite,
 	archModeRead
-} ArchiveMode;
+} DumpArchiveMode;
 
 typedef enum _teSection
 {
@@ -287,7 +287,7 @@ extern Archive *OpenArchive(const char *FileSpec, const ArchiveFormat fmt);
 
 /* Create a new archive */
 extern Archive *CreateArchive(const char *FileSpec, const ArchiveFormat fmt,
-			  const int compression, bool dosync, ArchiveMode mode,
+			  const int compression, bool dosync, DumpArchiveMode mode,
 			  SetupWorkerPtrType setupDumpWorker);
 
 /* The --list option */

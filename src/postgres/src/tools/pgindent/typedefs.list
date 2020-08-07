@@ -2608,6 +2608,7 @@ XmlExprOp
 XmlOptionType
 XmlSerialize
 XmlTableBuilderData
+YsqlDumpStmt
 YYLTYPE
 YYSTYPE
 YY_BUFFER_STATE

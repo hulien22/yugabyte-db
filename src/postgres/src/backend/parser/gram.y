@@ -318,7 +318,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		CreateMatViewStmt RefreshMatViewStmt CreateAmStmt
 		CreatePublicationStmt AlterPublicationStmt
 		CreateSubscriptionStmt AlterSubscriptionStmt DropSubscriptionStmt
-		BackfillIndexStmt
+		BackfillIndexStmt YsqlDumpStmt
 
 %type <node>	select_no_parens select_with_parens select_clause
 				simple_select values_clause
@@ -742,7 +742,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	XML_P XMLATTRIBUTES XMLCONCAT XMLELEMENT XMLEXISTS XMLFOREST XMLNAMESPACES
 	XMLPARSE XMLPI XMLROOT XMLSERIALIZE XMLTABLE
 
-	YEAR_P YES_P
+	YEAR_P YES_P YSQLDUMP
 
 	ZONE
 
@@ -956,6 +956,7 @@ stmt :
 			| AlterGroupStmt { parser_ybc_beta_feature(@1, "roles"); }
 			| AnalyzeStmt { parser_ybc_beta_feature(@1, "analyze"); }
 			| BackfillIndexStmt { parser_ybc_beta_feature(@1, "backfill index"); }
+			| YsqlDumpStmt { parser_ybc_beta_feature(@1, "ysqldump"); }
 			| VacuumStmt { parser_ybc_beta_feature(@1, "vacuum"); }
 
 			/* Not supported in template0/template1 statements */
@@ -8037,6 +8038,15 @@ opt_yb_index_sort_order: opt_asc_desc			{ $$ = $1; }
 opt_nulls_order: NULLS_LA FIRST_P			{ $$ = SORTBY_NULLS_FIRST; }
 			| NULLS_LA LAST_P				{ $$ = SORTBY_NULLS_LAST; }
 			| /*EMPTY*/						{ $$ = SORTBY_NULLS_DEFAULT; }
+		;
+
+YsqlDumpStmt:
+			YSQLDUMP name
+			{
+				YsqlDumpStmt *n = makeNode(YsqlDumpStmt);
+				n->name = $2;
+				$$ = (Node *)n;
+			}
 		;
 
 BackfillIndexStmt:
@@ -16082,6 +16092,7 @@ unreserved_keyword:
 			| XML_P
 			| YEAR_P
 			| YES_P
+			| YSQLDUMP
 			| ZONE
 		;
 
