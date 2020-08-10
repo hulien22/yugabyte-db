@@ -840,7 +840,7 @@ void appendReloptionsArrayAH(PQExpBuffer buffer, const char *reloptions,
 char *get_synchronized_snapshot(Archive *fout);
 void setupDumpWorker(Archive *AHX);
 TableInfo *getRootTableInfo(TableInfo *tbinfo);
-void HandleYBStatus(YBCStatus status);
+void DumpHandleYBStatus(YBCStatus status);
 
 
 /*

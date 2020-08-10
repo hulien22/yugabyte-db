@@ -876,7 +876,7 @@ variable_is_guc_list_quote(const char *name)
 }
 
 /*
- * SplitGUCList --- parse a string containing identifiers or file names
+ * DumpSplitGUCList --- parse a string containing identifiers or file names
  *
  * This is used to split the value of a GUC_LIST_QUOTE GUC variable, without
  * presuming whether the elements will be taken as identifiers or file names.
@@ -896,7 +896,7 @@ variable_is_guc_list_quote(const char *name)
  * Returns true if okay, false if there is a syntax error in the string.
  */
 bool
-SplitGUCList(char *rawstring, char separator,
+DumpSplitGUCList(char *rawstring, char separator,
 			 char ***namelist)
 {
 	char	   *nextp = rawstring;
@@ -1041,7 +1041,7 @@ makeAlterConfigCommand(PGconn *conn, const char *configitem,
 
 		/* Parse string into list of identifiers */
 		/* this shouldn't fail really */
-		if (SplitGUCList(pos, ',', &namelist))
+		if (DumpSplitGUCList(pos, ',', &namelist))
 		{
 			for (nameptr = namelist; *nameptr; nameptr++)
 			{

@@ -502,8 +502,8 @@ main(int argc, char **argv)
 		else
 			YBCSetMasterAddresses(dopt.pghost);
 
-		HandleYBStatus(YBCInit(progname, palloc, /* cstring_to_text_with_len_fn */ NULL));
-		HandleYBStatus(YBCInitPgGateBackend());
+		DumpHandleYBStatus(YBCInit(progname, palloc, /* cstring_to_text_with_len_fn */ NULL));
+		DumpHandleYBStatus(YBCInitPgGateBackend());
 	}
 #endif  /* DISABLE_YB_EXTENTIONS */
 

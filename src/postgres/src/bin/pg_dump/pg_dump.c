@@ -320,7 +320,7 @@ void dump(DumpOptions *dopt,
 }
 
 
-void HandleYBStatus(YBCStatus status) {
+void DumpHandleYBStatus(YBCStatus status) {
 	if (status) {
 		/* Copy the message to the current memory context and free the YBCStatus. */
 		const char* msg_buf = DupYBStatusMessage(status, false);
@@ -7353,7 +7353,7 @@ getCasts(Archive *fout, int *numCasts)
 }
 
 char *
-get_language_name(Archive *fout, Oid langid)
+dump_get_language_name(Archive *fout, Oid langid)
 {
 	PQExpBuffer query;
 	PGresult   *res;
@@ -7441,7 +7441,7 @@ getTransforms(Archive *fout, int *numTransforms)
 		 */
 		initPQExpBuffer(&namebuf);
 		typeInfo = findTypeByOid(transforminfo[i].trftype);
-		lanname = get_language_name(fout, transforminfo[i].trflang);
+		lanname = dump_get_language_name(fout, transforminfo[i].trflang);
 		if (typeInfo && lanname)
 			appendPQExpBuffer(&namebuf, "%s %s",
 							  typeInfo->dobj.name, lanname);
@@ -11363,7 +11363,7 @@ dumpFunc(Archive *fout, FuncInfo *finfo)
 
 			/* Parse string into list of identifiers */
 			/* this shouldn't fail really */
-			if (SplitGUCList(pos, ',', &namelist))
+			if (DumpSplitGUCList(pos, ',', &namelist))
 			{
 				for (nameptr = namelist; *nameptr; nameptr++)
 				{
@@ -11585,7 +11585,7 @@ dumpTransform(Archive *fout, TransformInfo *transform)
 	labelq = createPQExpBuffer();
 	transformargs = createPQExpBuffer();
 
-	lanname = get_language_name(fout, transform->trflang);
+	lanname = dump_get_language_name(fout, transform->trflang);
 	transformType = getFormattedTypeName(fout, transform->trftype, zeroAsNone);
 
 	appendPQExpBuffer(delqry, "DROP TRANSFORM FOR %s LANGUAGE %s;\n",
@@ -15147,8 +15147,8 @@ dumpTableSchema(Archive *fout, TableInfo *tbinfo)
 			/* Get the table properties from YugaByte. */
 			YBCPgTableDesc ybc_tabledesc = NULL;
 			YBCPgTableProperties properties;
-			HandleYBStatus(YBCPgGetTableDesc(dopt->db_oid, tbinfo->dobj.catId.oid, &ybc_tabledesc));
-			HandleYBStatus(YBCPgGetTableProperties(ybc_tabledesc, &properties));
+			DumpHandleYBStatus(YBCPgGetTableDesc(dopt->db_oid, tbinfo->dobj.catId.oid, &ybc_tabledesc));
+			DumpHandleYBStatus(YBCPgGetTableProperties(ybc_tabledesc, &properties));
 
 			if(properties.is_colocated)
 			{
