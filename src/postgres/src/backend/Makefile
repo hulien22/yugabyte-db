@@ -44,7 +44,9 @@ endif
 
 OBJS = $(SUBDIROBJS) $(LOCALOBJS) $(top_builddir)/src/port/libpgport_srv.a \
        $(top_builddir)/src/common/libpgcommon_srv.a \
-	   $(top_builddir)/src/fe_utils/libpgfeutils.a
+	   $(top_builddir)/src/fe_utils/libpgfeutils.a \
+	   $(top_builddir)/src/interfaces/libpq/libpq.a \
+	   $(top_builddir)/src/common/libpgcommon.a
 
 # We put libpgport and libpgcommon into OBJS, so remove it from LIBS; also add
 # libldap and ICU

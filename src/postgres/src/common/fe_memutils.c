@@ -108,6 +108,7 @@ pg_free(void *ptr)
 		free(ptr);
 }
 
+#ifdef FRONTEND
 /*
  * Frontend emulation of backend memory management functions.  Useful for
  * programs that compile backend files.
@@ -147,3 +148,4 @@ repalloc(void *pointer, Size size)
 {
 	return pg_realloc(pointer, size);
 }
+#endif

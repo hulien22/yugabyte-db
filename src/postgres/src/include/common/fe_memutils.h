@@ -29,6 +29,7 @@ extern void *pg_malloc_extended(size_t size, int flags);
 extern void *pg_realloc(void *pointer, size_t size);
 extern void pg_free(void *pointer);
 
+#ifdef FRONTEND
 /* Equivalent functions, deliberately named the same as backend functions */
 extern char *pstrdup(const char *in);
 extern void *palloc(Size size);
@@ -36,6 +37,7 @@ extern void *palloc0(Size size);
 extern void *palloc_extended(Size size, int flags);
 extern void *repalloc(void *pointer, Size size);
 extern void pfree(void *pointer);
+#endif
 
 /* sprintf into a palloc'd buffer --- these are in psprintf.c */
 extern char *psprintf(const char *fmt,...) pg_attribute_printf(1, 2);

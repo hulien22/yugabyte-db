@@ -19,8 +19,9 @@
  * Probably these should have had the underscore-free names,
  * but too late now...
  */
-extern int	lo_read(int fd, char *buf, int len);
-extern int	lo_write(int fd, const char *buf, int len);
+// really don't know where this is used??
+extern int	base_lo_read(int fd, char *buf, int len);
+extern int	base_lo_write(int fd, const char *buf, int len);
 
 /*
  * Cleanup LOs at xact commit/abort

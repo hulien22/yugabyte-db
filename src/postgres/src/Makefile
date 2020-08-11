@@ -17,12 +17,12 @@ SUBDIRS = \
 	common \
 	port \
 	timezone \
+	include \
+	interfaces \
 	fe_utils \
 	backend \
 	backend/utils/mb/conversion_procs \
 	backend/snowball \
-	include \
-	interfaces \
 	backend/replication/libpqwalreceiver \
 	backend/replication/pgoutput \
 	bin \
