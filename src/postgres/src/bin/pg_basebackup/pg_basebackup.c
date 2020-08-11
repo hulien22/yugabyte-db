@@ -1305,7 +1305,7 @@ ReceiveTarFile(PGconn *conn, PGresult *res, int rownum)
 
 	/* sync the resulting tar file, errors are not considered fatal */
 	if (do_sync && strcmp(basedir, "-") != 0)
-		(void) fsync_fname(filename, false, progname);
+		(void) _fsync_fname(filename, false, progname);
 }
 
 
@@ -2115,7 +2115,7 @@ BaseBackup(void)
 		if (format == 't')
 		{
 			if (strcmp(basedir, "-") != 0)
-				(void) fsync_fname(basedir, true, progname);
+				(void) _fsync_fname(basedir, true, progname);
 		}
 		else
 		{

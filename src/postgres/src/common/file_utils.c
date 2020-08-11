@@ -109,10 +109,10 @@ fsync_pgdata(const char *pg_data,
 	 * in pg_tblspc, they'll get fsync'd twice.  That's not an expected case
 	 * so we don't worry about optimizing it.
 	 */
-	walkdir(pg_data, fsync_fname, false, progname);
+	walkdir(pg_data, _fsync_fname, false, progname);
 	if (xlog_is_symlink)
-		walkdir(pg_wal, fsync_fname, false, progname);
-	walkdir(pg_tblspc, fsync_fname, true, progname);
+		walkdir(pg_wal, _fsync_fname, false, progname);
+	walkdir(pg_tblspc, _fsync_fname, true, progname);
 }
 
 /*
@@ -131,7 +131,7 @@ fsync_dir_recurse(const char *dir, const char *progname)
 	walkdir(dir, pre_sync_fname, false, progname);
 #endif
 
-	walkdir(dir, fsync_fname, false, progname);
+	walkdir(dir, _fsync_fname, false, progname);
 }
 
 /*
@@ -253,14 +253,14 @@ pre_sync_fname(const char *fname, bool isdir, const char *progname)
 #endif							/* PG_FLUSH_DATA_WORKS */
 
 /*
- * fsync_fname -- Try to fsync a file or directory
+ * _fsync_fname -- Try to fsync a file or directory
  *
  * Ignores errors trying to open unreadable files, or trying to fsync
  * directories on systems where that isn't allowed/required.  Reports
  * other errors non-fatally.
  */
 int
-fsync_fname(const char *fname, bool isdir, const char *progname)
+_fsync_fname(const char *fname, bool isdir, const char *progname)
 {
 	int			fd;
 	int			flags;
@@ -333,19 +333,19 @@ fsync_parent_path(const char *fname, const char *progname)
 	if (strlen(parentpath) == 0)
 		strlcpy(parentpath, ".", MAXPGPATH);
 
-	if (fsync_fname(parentpath, true, progname) != 0)
+	if (_fsync_fname(parentpath, true, progname) != 0)
 		return -1;
 
 	return 0;
 }
 
 /*
- * durable_rename -- rename(2) wrapper, issuing fsyncs required for durability
+ * _durable_rename -- rename(2) wrapper, issuing fsyncs required for durability
  *
  * Wrapper around rename, similar to the backend version.
  */
 int
-durable_rename(const char *oldfile, const char *newfile, const char *progname)
+_durable_rename(const char *oldfile, const char *newfile, const char *progname)
 {
 	int			fd;
 
@@ -356,7 +356,7 @@ durable_rename(const char *oldfile, const char *newfile, const char *progname)
 	 * because it's then guaranteed that either source or target file exists
 	 * after a crash.
 	 */
-	if (fsync_fname(oldfile, false, progname) != 0)
+	if (_fsync_fname(oldfile, false, progname) != 0)
 		return -1;
 
 	fd = open(newfile, PG_BINARY | O_RDWR, 0);
@@ -393,7 +393,7 @@ durable_rename(const char *oldfile, const char *newfile, const char *progname)
 	 * To guarantee renaming the file is persistent, fsync the file with its
 	 * new name, and its containing directory.
 	 */
-	if (fsync_fname(newfile, false, progname) != 0)
+	if (_fsync_fname(newfile, false, progname) != 0)
 		return -1;
 
 	if (fsync_parent_path(newfile, progname) != 0)

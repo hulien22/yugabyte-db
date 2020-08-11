@@ -724,7 +724,7 @@ _CloseArchive(ArchiveHandle *AH)
 
 	/* Sync the output file if one is defined */
 	if (AH->dosync && AH->mode == archModeWrite && AH->fSpec)
-		(void) fsync_fname(AH->fSpec, false, progname);
+		(void) _fsync_fname(AH->fSpec, false, progname);
 
 	AH->FH = NULL;
 }

@@ -454,13 +454,13 @@ _PG_fini(void)
 	ProcessUtility_hook = prev_ProcessUtility;
 }
 
-static void 
+static void
 resetYsqlStatementStats()
 {
   pg_stat_statements_reset(NULL);
 }
 
-static void 
+static void
 getYsqlStatementStats(void *cb_arg)
 {
 	HASH_SEQ_STATUS hash_seq;
@@ -806,7 +806,7 @@ pgss_shmem_shutdown(int code, Datum arg)
 	/*
 	 * Rename file into place, so we atomically replace any old one.
 	 */
-	(void) durable_rename(PGSS_DUMP_FILE ".tmp", PGSS_DUMP_FILE, LOG);
+	(void) _durable_rename(PGSS_DUMP_FILE ".tmp", PGSS_DUMP_FILE, LOG);
 
 	/* Unlink query-texts file; it's not needed while shutdown */
 	unlink(PGSS_TEXT_FILE);
