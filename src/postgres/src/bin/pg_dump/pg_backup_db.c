@@ -9,7 +9,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "dumputils.h"
 #include "fe_utils/connect.h"
@@ -45,7 +49,7 @@ _check_database_version(ArchiveHandle *AH)
 	if (remoteversion == 0 || !remoteversion_str)
 		exit_horribly(modulename, "could not get server_version from libpq\n");
 
-	AH->public.remoteVersionStr = pg_strdup(remoteversion_str);
+	AH->public.remoteVersionStr = pstrdup(remoteversion_str);
 	AH->public.remoteVersion = remoteversion;
 	if (!AH->archiveRemoteVersion)
 		AH->archiveRemoteVersion = AH->public.remoteVersionStr;
@@ -213,7 +217,7 @@ _connectDB(ArchiveHandle *AH, const char *reqdb, const char *requser)
 	{
 		if (AH->savedPassword)
 			free(AH->savedPassword);
-		AH->savedPassword = pg_strdup(PQpass(newConn));
+		AH->savedPassword = pstrdup(PQpass(newConn));
 	}
 
 	termPQExpBuffer(&connstr);
@@ -321,7 +325,7 @@ ConnectDatabase(Archive *AHX,
 	{
 		if (AH->savedPassword)
 			free(AH->savedPassword);
-		AH->savedPassword = pg_strdup(PQpass(AH->connection));
+		AH->savedPassword = pstrdup(PQpass(AH->connection));
 	}
 
 	/* check for version mismatch */
@@ -597,7 +601,7 @@ ExecuteSqlCommandBuf(Archive *AHX, const char *buf, size_t bufLen)
 			ExecuteSqlCommand(AH, buf, "could not execute query");
 		else
 		{
-			char	   *str = (char *) pg_malloc(bufLen + 1);
+			char	   *str = (char *) palloc(bufLen + 1);
 
 			memcpy(str, buf, bufLen);
 			str[bufLen] = '\0';

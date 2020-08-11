@@ -51,7 +51,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "compress_io.h"
 #include "pg_backup_utils.h"
@@ -138,7 +142,7 @@ AllocateCompressor(int compression, WriteFunc writeF)
 		exit_horribly(modulename, "not built with zlib support\n");
 #endif
 
-	cs = (CompressorState *) pg_malloc0(sizeof(CompressorState));
+	cs = (CompressorState *) palloc0(sizeof(CompressorState));
 	cs->writeF = writeF;
 	cs->comprAlg = alg;
 
@@ -224,7 +228,7 @@ InitCompressorZlib(CompressorState *cs, int level)
 {
 	z_streamp	zp;
 
-	zp = cs->zp = (z_streamp) pg_malloc(sizeof(z_stream));
+	zp = cs->zp = (z_streamp) palloc(sizeof(z_stream));
 	zp->zalloc = Z_NULL;
 	zp->zfree = Z_NULL;
 	zp->opaque = Z_NULL;
@@ -234,7 +238,7 @@ InitCompressorZlib(CompressorState *cs, int level)
 	 * actually allocate one extra byte because some routines want to append a
 	 * trailing zero byte to the zlib output.
 	 */
-	cs->zlibOut = (char *) pg_malloc(ZLIB_OUT_SIZE + 1);
+	cs->zlibOut = (char *) palloc(ZLIB_OUT_SIZE + 1);
 	cs->zlibOutSize = ZLIB_OUT_SIZE;
 
 	if (deflateInit(zp, level) != Z_OK)
@@ -329,15 +333,15 @@ ReadDataFromArchiveZlib(ArchiveHandle *AH, ReadFunc readF)
 	char	   *buf;
 	size_t		buflen;
 
-	zp = (z_streamp) pg_malloc(sizeof(z_stream));
+	zp = (z_streamp) palloc(sizeof(z_stream));
 	zp->zalloc = Z_NULL;
 	zp->zfree = Z_NULL;
 	zp->opaque = Z_NULL;
 
-	buf = pg_malloc(ZLIB_IN_SIZE);
+	buf = palloc(ZLIB_IN_SIZE);
 	buflen = ZLIB_IN_SIZE;
 
-	out = pg_malloc(ZLIB_OUT_SIZE + 1);
+	out = palloc(ZLIB_OUT_SIZE + 1);
 
 	if (inflateInit(zp) != Z_OK)
 		exit_horribly(modulename,
@@ -402,7 +406,7 @@ ReadDataFromArchiveNone(ArchiveHandle *AH, ReadFunc readF)
 	char	   *buf;
 	size_t		buflen;
 
-	buf = pg_malloc(ZLIB_OUT_SIZE);
+	buf = palloc(ZLIB_OUT_SIZE);
 	buflen = ZLIB_OUT_SIZE;
 
 	while ((cnt = readF(AH, &buf, &buflen)))
@@ -532,7 +536,7 @@ cfopen_write(const char *path, const char *mode, int compression)
 cfp *
 cfopen(const char *path, const char *mode, int compression)
 {
-	cfp		   *fp = pg_malloc(sizeof(cfp));
+	cfp		   *fp = palloc(sizeof(cfp));
 
 	if (compression != 0)
 	{

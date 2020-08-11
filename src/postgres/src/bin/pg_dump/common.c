@@ -13,7 +13,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "pg_backup_archiver.h"
 #include "pg_backup_utils.h"
@@ -378,7 +382,7 @@ flagInhIndexes(Archive *fout, TableInfo tblinfo[], int numTables)
 	DumpableObject ***parentIndexArray;
 
 	parentIndexArray = (DumpableObject ***)
-		pg_malloc0(getMaxDumpId() * sizeof(DumpableObject **));
+		palloc0(getMaxDumpId() * sizeof(DumpableObject **));
 
 	for (i = 0; i < numTables; i++)
 	{
@@ -405,7 +409,7 @@ flagInhIndexes(Archive *fout, TableInfo tblinfo[], int numTables)
 								sizeof(IndxInfo));
 
 		attachinfo = (IndexAttachInfo *)
-			pg_malloc0(tblinfo[i].numIndexes * sizeof(IndexAttachInfo));
+			palloc0(tblinfo[i].numIndexes * sizeof(IndexAttachInfo));
 		for (j = 0, k = 0; j < tblinfo[i].numIndexes; j++)
 		{
 			IndxInfo   *index = &(tblinfo[i].indexes[j]);
@@ -424,7 +428,7 @@ flagInhIndexes(Archive *fout, TableInfo tblinfo[], int numTables)
 			attachinfo[k].dobj.catId.tableoid = 0;
 			attachinfo[k].dobj.catId.oid = 0;
 			AssignDumpId(&attachinfo[k].dobj);
-			attachinfo[k].dobj.name = pg_strdup(index->dobj.name);
+			attachinfo[k].dobj.name = pstrdup(index->dobj.name);
 			attachinfo[k].dobj.namespace = index->indextable->dobj.namespace;
 			attachinfo[k].parentIdx = parentidx;
 			attachinfo[k].partitionIdx = index;
@@ -457,8 +461,8 @@ flagInhIndexes(Archive *fout, TableInfo tblinfo[], int numTables)
 
 	for (i = 0; i < numTables; i++)
 		if (parentIndexArray[i])
-			pg_free(parentIndexArray[i]);
-	pg_free(parentIndexArray);
+			pfree(parentIndexArray[i]);
+	pfree(parentIndexArray);
 }
 
 /* flagInhAttrs -
@@ -537,18 +541,18 @@ flagInhAttrs(DumpOptions *dopt, TableInfo *tblinfo, int numTables)
 			{
 				AttrDefInfo *attrDef;
 
-				attrDef = (AttrDefInfo *) pg_malloc(sizeof(AttrDefInfo));
+				attrDef = (AttrDefInfo *) palloc(sizeof(AttrDefInfo));
 				attrDef->dobj.objType = DO_ATTRDEF;
 				attrDef->dobj.catId.tableoid = 0;
 				attrDef->dobj.catId.oid = 0;
 				AssignDumpId(&attrDef->dobj);
-				attrDef->dobj.name = pg_strdup(tbinfo->dobj.name);
+				attrDef->dobj.name = pstrdup(tbinfo->dobj.name);
 				attrDef->dobj.namespace = tbinfo->dobj.namespace;
 				attrDef->dobj.dump = tbinfo->dobj.dump;
 
 				attrDef->adtable = tbinfo;
 				attrDef->adnum = j + 1;
-				attrDef->adef_expr = pg_strdup("NULL");
+				attrDef->adef_expr = pstrdup("NULL");
 
 				/* Will column be dumped explicitly? */
 				if (shouldPrintColumn(dopt, tbinfo, j))
@@ -599,13 +603,13 @@ AssignDumpId(DumpableObject *dobj)
 		{
 			newAlloc = 256;
 			dumpIdMap = (DumpableObject **)
-				pg_malloc(newAlloc * sizeof(DumpableObject *));
+				palloc(newAlloc * sizeof(DumpableObject *));
 		}
 		else
 		{
 			newAlloc = allocedDumpIds * 2;
 			dumpIdMap = (DumpableObject **)
-				pg_realloc(dumpIdMap, newAlloc * sizeof(DumpableObject *));
+				repalloc(dumpIdMap, newAlloc * sizeof(DumpableObject *));
 		}
 		memset(dumpIdMap + allocedDumpIds, 0,
 			   (newAlloc - allocedDumpIds) * sizeof(DumpableObject *));
@@ -756,7 +760,7 @@ buildIndexArray(void *objArray, int numObjs, Size objSize)
 	DumpableObject **ptrs;
 	int			i;
 
-	ptrs = (DumpableObject **) pg_malloc(numObjs * sizeof(DumpableObject *));
+	ptrs = (DumpableObject **) palloc(numObjs * sizeof(DumpableObject *));
 	for (i = 0; i < numObjs; i++)
 		ptrs[i] = (DumpableObject *) ((char *) objArray + i * objSize);
 
@@ -800,7 +804,7 @@ getDumpableObjects(DumpableObject ***objs, int *numObjs)
 				j;
 
 	*objs = (DumpableObject **)
-		pg_malloc(allocedDumpIds * sizeof(DumpableObject *));
+		palloc(allocedDumpIds * sizeof(DumpableObject *));
 	j = 0;
 	for (i = 1; i < allocedDumpIds; i++)
 	{
@@ -824,13 +828,13 @@ addObjectDependency(DumpableObject *dobj, DumpId refId)
 		{
 			dobj->allocDeps = 16;
 			dobj->dependencies = (DumpId *)
-				pg_malloc(dobj->allocDeps * sizeof(DumpId));
+				palloc(dobj->allocDeps * sizeof(DumpId));
 		}
 		else
 		{
 			dobj->allocDeps *= 2;
 			dobj->dependencies = (DumpId *)
-				pg_realloc(dobj->dependencies,
+				repalloc(dobj->dependencies,
 						   dobj->allocDeps * sizeof(DumpId));
 		}
 	}
@@ -1048,7 +1052,7 @@ findParentsByOid(TableInfo *self,
 	if (numParents > 0)
 	{
 		self->parents = (TableInfo **)
-			pg_malloc(sizeof(TableInfo *) * numParents);
+			palloc(sizeof(TableInfo *) * numParents);
 		j = 0;
 		for (i = 0; i < numInherits; i++)
 		{

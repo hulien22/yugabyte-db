@@ -13,7 +13,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "pg_backup_archiver.h"
 #include "pg_backup_utils.h"
@@ -334,7 +338,7 @@ sortDumpableObjects(DumpableObject **objs, int numObjs,
 	preDataBoundId = preBoundaryId;
 	postDataBoundId = postBoundaryId;
 
-	ordering = (DumpableObject **) pg_malloc(numObjs * sizeof(DumpableObject *));
+	ordering = (DumpableObject **) palloc(numObjs * sizeof(DumpableObject *));
 	while (!TopoSort(objs, numObjs, ordering, &nOrdering))
 		findDependencyLoops(ordering, nOrdering, numObjs);
 
@@ -405,7 +409,7 @@ TopoSort(DumpableObject **objs,
 		return true;
 
 	/* Create workspace for the above-described heap */
-	pendingHeap = (int *) pg_malloc(numObjs * sizeof(int));
+	pendingHeap = (int *) palloc(numObjs * sizeof(int));
 
 	/*
 	 * Scan the constraints, and for each item in the input, generate a count
@@ -414,9 +418,9 @@ TopoSort(DumpableObject **objs,
 	 * We also make a map showing the input-order index of the item with
 	 * dumpId j.
 	 */
-	beforeConstraints = (int *) pg_malloc((maxDumpId + 1) * sizeof(int));
+	beforeConstraints = (int *) palloc((maxDumpId + 1) * sizeof(int));
 	memset(beforeConstraints, 0, (maxDumpId + 1) * sizeof(int));
-	idMap = (int *) pg_malloc((maxDumpId + 1) * sizeof(int));
+	idMap = (int *) palloc((maxDumpId + 1) * sizeof(int));
 	for (i = 0; i < numObjs; i++)
 	{
 		obj = objs[i];
@@ -621,9 +625,9 @@ findDependencyLoops(DumpableObject **objs, int nObjs, int totObjs)
 	bool		fixedloop;
 	int			i;
 
-	processed = (bool *) pg_malloc0((getMaxDumpId() + 1) * sizeof(bool));
-	searchFailed = (DumpId *) pg_malloc0((getMaxDumpId() + 1) * sizeof(DumpId));
-	workspace = (DumpableObject **) pg_malloc(totObjs * sizeof(DumpableObject *));
+	processed = (bool *) palloc0((getMaxDumpId() + 1) * sizeof(bool));
+	searchFailed = (DumpId *) palloc0((getMaxDumpId() + 1) * sizeof(DumpId));
+	workspace = (DumpableObject **) palloc(totObjs * sizeof(DumpableObject *));
 	fixedloop = false;
 
 	for (i = 0; i < nObjs; i++)

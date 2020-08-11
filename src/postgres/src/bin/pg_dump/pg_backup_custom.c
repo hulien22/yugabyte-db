@@ -23,7 +23,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "compress_io.h"
 #include "parallel.h"
@@ -137,12 +141,12 @@ InitArchiveFmt_Custom(ArchiveHandle *AH)
 	AH->WorkerJobRestorePtr = _WorkerJobRestoreCustom;
 
 	/* Set up a private area. */
-	ctx = (lclContext *) pg_malloc0(sizeof(lclContext));
+	ctx = (lclContext *) palloc0(sizeof(lclContext));
 	AH->formatData = (void *) ctx;
 
 	/* Initialize LO buffering */
 	AH->lo_buf_size = LOBBUFSIZE;
-	AH->lo_buf = (void *) pg_malloc(LOBBUFSIZE);
+	AH->lo_buf = (void *) palloc(LOBBUFSIZE);
 
 	ctx->filePos = 0;
 
@@ -206,7 +210,7 @@ _ArchiveEntry(ArchiveHandle *AH, TocEntry *te)
 {
 	lclTocEntry *ctx;
 
-	ctx = (lclTocEntry *) pg_malloc0(sizeof(lclTocEntry));
+	ctx = (lclTocEntry *) palloc0(sizeof(lclTocEntry));
 	if (te->dataDumper)
 		ctx->dataState = K_OFFSET_POS_NOT_SET;
 	else
@@ -247,7 +251,7 @@ _ReadExtraToc(ArchiveHandle *AH, TocEntry *te)
 
 	if (ctx == NULL)
 	{
-		ctx = (lclTocEntry *) pg_malloc0(sizeof(lclTocEntry));
+		ctx = (lclTocEntry *) palloc0(sizeof(lclTocEntry));
 		te->formatData = (void *) ctx;
 	}
 
@@ -574,7 +578,7 @@ _skipData(ArchiveHandle *AH)
 		{
 			if (buf)
 				free(buf);
-			buf = (char *) pg_malloc(blkLen);
+			buf = (char *) palloc(blkLen);
 			buflen = blkLen;
 		}
 		if ((cnt = fread(buf, 1, blkLen, AH->FH)) != blkLen)
@@ -783,7 +787,7 @@ _Clone(ArchiveHandle *AH)
 {
 	lclContext *ctx = (lclContext *) AH->formatData;
 
-	AH->formatData = (lclContext *) pg_malloc(sizeof(lclContext));
+	AH->formatData = (lclContext *) palloc(sizeof(lclContext));
 	memcpy(AH->formatData, ctx, sizeof(lclContext));
 	ctx = (lclContext *) AH->formatData;
 
@@ -921,7 +925,7 @@ _CustomReadFunc(ArchiveHandle *AH, char **buf, size_t *buflen)
 	if (blkLen > *buflen)
 	{
 		free(*buf);
-		*buf = (char *) pg_malloc(blkLen);
+		*buf = (char *) palloc(blkLen);
 		*buflen = blkLen;
 	}
 

@@ -38,7 +38,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include <ctype.h>
 #ifdef HAVE_TERMIOS_H
@@ -165,21 +169,21 @@ main(int argc, char **argv)
 				opts->createDB = 1;
 				break;
 			case 'd':
-				opts->dbname = pg_strdup(optarg);
+				opts->dbname = pstrdup(optarg);
 				break;
 			case 'e':
 				opts->exit_on_error = true;
 				break;
 			case 'f':			/* output file name */
-				opts->filename = pg_strdup(optarg);
+				opts->filename = pstrdup(optarg);
 				break;
 			case 'F':
 				if (strlen(optarg) != 0)
-					opts->formatName = pg_strdup(optarg);
+					opts->formatName = pstrdup(optarg);
 				break;
 			case 'h':
 				if (strlen(optarg) != 0)
-					opts->pghost = pg_strdup(optarg);
+					opts->pghost = pstrdup(optarg);
 				break;
 
 			case 'j':			/* number of restore jobs */
@@ -191,7 +195,7 @@ main(int argc, char **argv)
 				break;
 
 			case 'L':			/* input TOC summary file name */
-				opts->tocFile = pg_strdup(optarg);
+				opts->tocFile = pstrdup(optarg);
 				break;
 
 			case 'n':			/* Dump data for this schema only */
@@ -208,7 +212,7 @@ main(int argc, char **argv)
 
 			case 'p':
 				if (strlen(optarg) != 0)
-					opts->pgport = pg_strdup(optarg);
+					opts->pgport = pstrdup(optarg);
 				break;
 			case 'R':
 				/* no-op, still accepted for backwards compatibility */
@@ -233,7 +237,7 @@ main(int argc, char **argv)
 				break;
 			case 'S':			/* Superuser username */
 				if (strlen(optarg) != 0)
-					opts->superuser = pg_strdup(optarg);
+					opts->superuser = pstrdup(optarg);
 				break;
 			case 't':			/* Dump specified table(s) only */
 				opts->selTypes = 1;
@@ -242,7 +246,7 @@ main(int argc, char **argv)
 				break;
 
 			case 'U':
-				opts->username = pg_strdup(optarg);
+				opts->username = pstrdup(optarg);
 				break;
 
 			case 'v':			/* verbose */
@@ -274,7 +278,7 @@ main(int argc, char **argv)
 				break;
 
 			case 2:				/* SET ROLE */
-				opts->use_role = pg_strdup(optarg);
+				opts->use_role = pstrdup(optarg);
 				break;
 
 			case 3:				/* section */

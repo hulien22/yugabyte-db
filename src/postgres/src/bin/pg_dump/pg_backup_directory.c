@@ -32,7 +32,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "compress_io.h"
 #include "parallel.h"
@@ -139,7 +143,7 @@ InitArchiveFmt_Directory(ArchiveHandle *AH)
 	AH->WorkerJobDumpPtr = _WorkerJobDumpDirectory;
 
 	/* Set up our private context */
-	ctx = (lclContext *) pg_malloc0(sizeof(lclContext));
+	ctx = (lclContext *) palloc0(sizeof(lclContext));
 	AH->formatData = (void *) ctx;
 
 	ctx->dataFH = NULL;
@@ -147,7 +151,7 @@ InitArchiveFmt_Directory(ArchiveHandle *AH)
 
 	/* Initialize LO buffering */
 	AH->lo_buf_size = LOBBUFSIZE;
-	AH->lo_buf = (void *) pg_malloc(LOBBUFSIZE);
+	AH->lo_buf = (void *) palloc(LOBBUFSIZE);
 
 	/*
 	 * Now open the TOC file
@@ -239,14 +243,14 @@ _ArchiveEntry(ArchiveHandle *AH, TocEntry *te)
 	lclTocEntry *tctx;
 	char		fn[MAXPGPATH];
 
-	tctx = (lclTocEntry *) pg_malloc0(sizeof(lclTocEntry));
+	tctx = (lclTocEntry *) palloc0(sizeof(lclTocEntry));
 	if (te->dataDumper)
 	{
 		snprintf(fn, MAXPGPATH, "%d.dat", te->dumpId);
-		tctx->filename = pg_strdup(fn);
+		tctx->filename = pstrdup(fn);
 	}
 	else if (strcmp(te->desc, "BLOBS") == 0)
-		tctx->filename = pg_strdup("blobs.toc");
+		tctx->filename = pstrdup("blobs.toc");
 	else
 		tctx->filename = NULL;
 
@@ -288,7 +292,7 @@ _ReadExtraToc(ArchiveHandle *AH, TocEntry *te)
 
 	if (tctx == NULL)
 	{
-		tctx = (lclTocEntry *) pg_malloc0(sizeof(lclTocEntry));
+		tctx = (lclTocEntry *) palloc0(sizeof(lclTocEntry));
 		te->formatData = (void *) tctx;
 	}
 
@@ -396,7 +400,7 @@ _PrintFileData(ArchiveHandle *AH, char *filename)
 		exit_horribly(modulename, "could not open input file \"%s\": %s\n",
 					  filename, strerror(errno));
 
-	buf = pg_malloc(ZLIB_OUT_SIZE);
+	buf = palloc(ZLIB_OUT_SIZE);
 	buflen = ZLIB_OUT_SIZE;
 
 	while ((cnt = cfread(buf, buflen, cfp)))
@@ -734,7 +738,7 @@ _Clone(ArchiveHandle *AH)
 {
 	lclContext *ctx = (lclContext *) AH->formatData;
 
-	AH->formatData = (lclContext *) pg_malloc(sizeof(lclContext));
+	AH->formatData = (lclContext *) palloc(sizeof(lclContext));
 	memcpy(AH->formatData, ctx, sizeof(lclContext));
 	ctx = (lclContext *) AH->formatData;
 

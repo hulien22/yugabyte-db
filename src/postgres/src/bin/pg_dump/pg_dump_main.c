@@ -1,4 +1,8 @@
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include <unistd.h>
 #include <ctype.h>
@@ -238,27 +242,27 @@ main(int argc, char **argv)
 				break;
 
 			case 'd':			/* database name */
-				dopt.dbname = pg_strdup(optarg);
+				dopt.dbname = pstrdup(optarg);
 				break;
 
 			case 'E':			/* Dump encoding */
-				dumpencoding = pg_strdup(optarg);
+				dumpencoding = pstrdup(optarg);
 				break;
 
 			case 'f':
-				filename = pg_strdup(optarg);
+				filename = pstrdup(optarg);
 				break;
 
 			case 'F':
-				format = pg_strdup(optarg);
+				format = pstrdup(optarg);
 				break;
 
 			case 'h':			/* server host */
-				dopt.pghost = pg_strdup(optarg);
+				dopt.pghost = pstrdup(optarg);
 				break;
 
 			case 'm':			/* YB master hosts */
-				dopt.master_hosts = pg_strdup(optarg);
+				dopt.master_hosts = pstrdup(optarg);
 				break;
 
 			case 'j':			/* number of dump jobs */
@@ -283,7 +287,7 @@ main(int argc, char **argv)
 				break;
 
 			case 'p':			/* server port */
-				dopt.pgport = pg_strdup(optarg);
+				dopt.pgport = pstrdup(optarg);
 				break;
 
 			case 'R':
@@ -295,7 +299,7 @@ main(int argc, char **argv)
 				break;
 
 			case 'S':			/* Username for superuser in plain text output */
-				dopt.outputSuperuser = pg_strdup(optarg);
+				dopt.outputSuperuser = pstrdup(optarg);
 				break;
 
 			case 't':			/* include table(s) */
@@ -308,7 +312,7 @@ main(int argc, char **argv)
 				break;
 
 			case 'U':
-				dopt.username = pg_strdup(optarg);
+				dopt.username = pstrdup(optarg);
 				break;
 
 			case 'v':			/* verbose */
@@ -341,11 +345,11 @@ main(int argc, char **argv)
 				break;
 
 			case 2:				/* lock-wait-timeout */
-				dopt.lockWaitTimeout = pg_strdup(optarg);
+				dopt.lockWaitTimeout = pstrdup(optarg);
 				break;
 
 			case 3:				/* SET ROLE */
-				use_role = pg_strdup(optarg);
+				use_role = pstrdup(optarg);
 				break;
 
 			case 4:				/* exclude table(s) data */
@@ -357,7 +361,7 @@ main(int argc, char **argv)
 				break;
 
 			case 6:				/* snapshot */
-				dumpsnapshot = pg_strdup(optarg);
+				dumpsnapshot = pstrdup(optarg);
 				break;
 
 			case 7:				/* no-sync */

@@ -27,7 +27,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "pg_backup_archiver.h"
 #include "pg_backup_tar.h"
@@ -159,14 +163,14 @@ InitArchiveFmt_Tar(ArchiveHandle *AH)
 	/*
 	 * Set up some special context used in compressing data.
 	 */
-	ctx = (lclContext *) pg_malloc0(sizeof(lclContext));
+	ctx = (lclContext *) palloc0(sizeof(lclContext));
 	AH->formatData = (void *) ctx;
 	ctx->filePos = 0;
 	ctx->isSpecialScript = 0;
 
 	/* Initialize LO buffering */
 	AH->lo_buf_size = LOBBUFSIZE;
-	AH->lo_buf = (void *) pg_malloc(LOBBUFSIZE);
+	AH->lo_buf = (void *) palloc(LOBBUFSIZE);
 
 	/*
 	 * Now open the tar file, and load the TOC if we're in read mode.
@@ -259,7 +263,7 @@ _ArchiveEntry(ArchiveHandle *AH, TocEntry *te)
 	lclTocEntry *ctx;
 	char		fn[K_STD_BUF_SIZE];
 
-	ctx = (lclTocEntry *) pg_malloc0(sizeof(lclTocEntry));
+	ctx = (lclTocEntry *) palloc0(sizeof(lclTocEntry));
 	if (te->dataDumper != NULL)
 	{
 #ifdef HAVE_LIBZ
@@ -270,7 +274,7 @@ _ArchiveEntry(ArchiveHandle *AH, TocEntry *te)
 #else
 		sprintf(fn, "%d.dat", te->dumpId);
 #endif
-		ctx->filename = pg_strdup(fn);
+		ctx->filename = pstrdup(fn);
 	}
 	else
 	{
@@ -298,7 +302,7 @@ _ReadExtraToc(ArchiveHandle *AH, TocEntry *te)
 
 	if (ctx == NULL)
 	{
-		ctx = (lclTocEntry *) pg_malloc0(sizeof(lclTocEntry));
+		ctx = (lclTocEntry *) palloc0(sizeof(lclTocEntry));
 		te->formatData = (void *) ctx;
 	}
 
@@ -373,7 +377,7 @@ tarOpen(ArchiveHandle *AH, const char *filename, char mode)
 	{
 		int			old_umask;
 
-		tm = pg_malloc0(sizeof(TAR_MEMBER));
+		tm = palloc0(sizeof(TAR_MEMBER));
 
 		/*
 		 * POSIX does not require, but permits, tmpfile() to restrict file
@@ -436,7 +440,7 @@ tarOpen(ArchiveHandle *AH, const char *filename, char mode)
 #endif
 
 		tm->AH = AH;
-		tm->targetFile = pg_strdup(filename);
+		tm->targetFile = pstrdup(filename);
 	}
 
 	tm->mode = mode;
@@ -1035,7 +1039,7 @@ tarPrintf(ArchiveHandle *AH, TAR_MEMBER *th, const char *fmt,...)
 		va_list		args;
 
 		/* Allocate work buffer. */
-		p = (char *) pg_malloc(len);
+		p = (char *) palloc(len);
 
 		/* Try to format the data. */
 		va_start(args, fmt);
@@ -1144,7 +1148,7 @@ static TAR_MEMBER *
 _tarPositionTo(ArchiveHandle *AH, const char *filename)
 {
 	lclContext *ctx = (lclContext *) AH->formatData;
-	TAR_MEMBER *th = pg_malloc0(sizeof(TAR_MEMBER));
+	TAR_MEMBER *th = palloc0(sizeof(TAR_MEMBER));
 	char		c;
 	char		header[512];
 	size_t		i,
@@ -1303,7 +1307,7 @@ _tarGetHeader(ArchiveHandle *AH, TAR_MEMBER *th)
 					  tag, sum, chk, posbuf);
 	}
 
-	th->targetFile = pg_strdup(tag);
+	th->targetFile = pstrdup(tag);
 	th->fileLen = len;
 
 	return 1;

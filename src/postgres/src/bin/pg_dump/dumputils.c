@@ -12,7 +12,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include <ctype.h>
 
@@ -909,7 +913,7 @@ DumpSplitGUCList(char *rawstring, char separator,
 	 * list terminator.
 	 */
 	*namelist = nextptr = (char **)
-		pg_malloc((strlen(rawstring) / 2 + 2) * sizeof(char *));
+		palloc((strlen(rawstring) / 2 + 2) * sizeof(char *));
 	*nextptr = NULL;
 
 	while (isspace((unsigned char) *nextp))
@@ -1005,11 +1009,11 @@ makeAlterConfigCommand(PGconn *conn, const char *configitem,
 	char	   *pos;
 
 	/* Parse the configitem.  If we can't find an "=", silently do nothing. */
-	mine = pg_strdup(configitem);
+	mine = pstrdup(configitem);
 	pos = strchr(mine, '=');
 	if (pos == NULL)
 	{
-		pg_free(mine);
+		pfree(mine);
 		return;
 	}
 	*pos++ = '\0';
@@ -1050,12 +1054,12 @@ makeAlterConfigCommand(PGconn *conn, const char *configitem,
 				appendStringLiteralConn(buf, *nameptr, conn);
 			}
 		}
-		pg_free(namelist);
+		pfree(namelist);
 	}
 	else
 		appendStringLiteralConn(buf, pos, conn);
 
 	appendPQExpBufferStr(buf, ";\n");
 
-	pg_free(mine);
+	pfree(mine);
 }

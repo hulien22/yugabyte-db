@@ -13,7 +13,11 @@
  *-------------------------------------------------------------------------
  */
 
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include <time.h>
 #include <unistd.h>
@@ -217,17 +221,17 @@ main(int argc, char *argv[])
 				break;
 
 			case 'd':
-				connstr = pg_strdup(optarg);
+				connstr = pstrdup(optarg);
 				break;
 
 			case 'E':
-				dumpencoding = pg_strdup(optarg);
+				dumpencoding = pstrdup(optarg);
 				appendPQExpBufferStr(pgdumpopts, " -E ");
 				appendShellString(pgdumpopts, optarg);
 				break;
 
 			case 'f':
-				filename = pg_strdup(optarg);
+				filename = pstrdup(optarg);
 				appendPQExpBufferStr(pgdumpopts, " -f ");
 				appendShellString(pgdumpopts, filename);
 				break;
@@ -237,11 +241,11 @@ main(int argc, char *argv[])
 				break;
 
 			case 'h':
-				pghost = pg_strdup(optarg);
+				pghost = pstrdup(optarg);
 				break;
 
 			case 'l':
-				pgdb = pg_strdup(optarg);
+				pgdb = pstrdup(optarg);
 				break;
 
 			case 'o':
@@ -253,7 +257,7 @@ main(int argc, char *argv[])
 				break;
 
 			case 'p':
-				pgport = pg_strdup(optarg);
+				pgport = pstrdup(optarg);
 				break;
 
 			case 'r':
@@ -274,7 +278,7 @@ main(int argc, char *argv[])
 				break;
 
 			case 'U':
-				pguser = pg_strdup(optarg);
+				pguser = pstrdup(optarg);
 				break;
 
 			case 'v':
@@ -306,7 +310,7 @@ main(int argc, char *argv[])
 				break;
 
 			case 3:
-				use_role = pg_strdup(optarg);
+				use_role = pstrdup(optarg);
 				appendPQExpBufferStr(pgdumpopts, " --role ");
 				appendShellString(pgdumpopts, use_role);
 				break;
@@ -1044,7 +1048,7 @@ dumpGroups(PGconn *conn)
 		if (strlen(grolist) < 3)
 			continue;
 
-		grolist = pg_strdup(grolist);
+		grolist = pstrdup(grolist);
 		grolist[0] = '(';
 		grolist[strlen(grolist) - 1] = ')';
 		printfPQExpBuffer(buf,
@@ -1205,7 +1209,7 @@ dumpTablespaces(PGconn *conn)
 		char	   *fspcname;
 
 		/* needed for buildACLCommands() */
-		fspcname = pg_strdup(fmtId(spcname));
+		fspcname = pstrdup(fmtId(spcname));
 
 		appendPQExpBuffer(buf, "CREATE TABLESPACE %s", fspcname);
 		appendPQExpBuffer(buf, " OWNER %s", fmtId(spcowner));
@@ -1579,8 +1583,8 @@ connectDatabase(const char *dbname, const char *connection_string,
 					argcount++;
 			}
 
-			keywords = pg_malloc0((argcount + 1) * sizeof(*keywords));
-			values = pg_malloc0((argcount + 1) * sizeof(*values));
+			keywords = palloc0((argcount + 1) * sizeof(*keywords));
+			values = palloc0((argcount + 1) * sizeof(*values));
 
 			for (conn_opt = conn_opts; conn_opt->keyword != NULL; conn_opt++)
 			{
@@ -1595,8 +1599,8 @@ connectDatabase(const char *dbname, const char *connection_string,
 		}
 		else
 		{
-			keywords = pg_malloc0((argcount + 1) * sizeof(*keywords));
-			values = pg_malloc0((argcount + 1) * sizeof(*values));
+			keywords = palloc0((argcount + 1) * sizeof(*keywords));
+			values = palloc0((argcount + 1) * sizeof(*values));
 		}
 
 		if (pghost)
@@ -1756,7 +1760,7 @@ constructConnStr(const char **keywords, const char **values)
 		appendConnStrVal(buf, values[i]);
 	}
 
-	connstr = pg_strdup(buf->data);
+	connstr = pstrdup(buf->data);
 	destroyPQExpBuffer(buf);
 	return connstr;
 }

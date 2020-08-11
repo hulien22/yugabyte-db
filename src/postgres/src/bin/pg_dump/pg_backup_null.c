@@ -21,7 +21,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "pg_backup_archiver.h"
 #include "pg_backup_utils.h"
@@ -66,7 +70,7 @@ InitArchiveFmt_Null(ArchiveHandle *AH)
 
 	/* Initialize LO buffering */
 	AH->lo_buf_size = LOBBUFSIZE;
-	AH->lo_buf = (void *) pg_malloc(LOBBUFSIZE);
+	AH->lo_buf = (void *) palloc(LOBBUFSIZE);
 
 	/*
 	 * Now prevent reading...

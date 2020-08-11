@@ -19,7 +19,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include <ctype.h>
 #include <fcntl.h>
@@ -129,7 +133,7 @@ static void StrictNamesCheck(RestoreOptions *ropt);
 DumpOptions *
 NewDumpOptions(void)
 {
-	DumpOptions *opts = (DumpOptions *) pg_malloc(sizeof(DumpOptions));
+	DumpOptions *opts = (DumpOptions *) palloc(sizeof(DumpOptions));
 
 	InitDumpOptions(opts);
 	return opts;
@@ -534,7 +538,7 @@ RestoreArchive(Archive *AHX)
 						}
 						else
 						{
-							char	   *dropStmt = pg_strdup(te->dropStmt);
+							char	   *dropStmt = pstrdup(te->dropStmt);
 							char	   *dropStmtOrig = dropStmt;
 							PQExpBuffer ftStmt = createPQExpBuffer();
 
@@ -607,7 +611,7 @@ RestoreArchive(Archive *AHX)
 							ahprintf(AH, "%s", ftStmt->data);
 
 							destroyPQExpBuffer(ftStmt);
-							pg_free(dropStmtOrig);
+							pfree(dropStmtOrig);
 						}
 					}
 				}
@@ -956,7 +960,7 @@ NewRestoreOptions(void)
 {
 	RestoreOptions *opts;
 
-	opts = (RestoreOptions *) pg_malloc0(sizeof(RestoreOptions));
+	opts = (RestoreOptions *) palloc0(sizeof(RestoreOptions));
 
 	/* set any fields that shouldn't default to zeroes */
 	opts->format = archUnknown;
@@ -1058,7 +1062,7 @@ ArchiveEntry(Archive *AHX,
 	ArchiveHandle *AH = (ArchiveHandle *) AHX;
 	TocEntry   *newToc;
 
-	newToc = (TocEntry *) pg_malloc0(sizeof(TocEntry));
+	newToc = (TocEntry *) palloc0(sizeof(TocEntry));
 
 	AH->tocCount++;
 	if (dumpId > AH->maxDumpId)
@@ -1073,19 +1077,19 @@ ArchiveEntry(Archive *AHX,
 	newToc->dumpId = dumpId;
 	newToc->section = section;
 
-	newToc->tag = pg_strdup(tag);
-	newToc->namespace = namespace ? pg_strdup(namespace) : NULL;
-	newToc->tablespace = tablespace ? pg_strdup(tablespace) : NULL;
-	newToc->owner = pg_strdup(owner);
+	newToc->tag = pstrdup(tag);
+	newToc->namespace = namespace ? pstrdup(namespace) : NULL;
+	newToc->tablespace = tablespace ? pstrdup(tablespace) : NULL;
+	newToc->owner = pstrdup(owner);
 	newToc->withOids = withOids;
-	newToc->desc = pg_strdup(desc);
-	newToc->defn = pg_strdup(defn);
-	newToc->dropStmt = pg_strdup(dropStmt);
-	newToc->copyStmt = copyStmt ? pg_strdup(copyStmt) : NULL;
+	newToc->desc = pstrdup(desc);
+	newToc->defn = pstrdup(defn);
+	newToc->dropStmt = pstrdup(dropStmt);
+	newToc->copyStmt = copyStmt ? pstrdup(copyStmt) : NULL;
 
 	if (nDeps > 0)
 	{
-		newToc->dependencies = (DumpId *) pg_malloc(nDeps * sizeof(DumpId));
+		newToc->dependencies = (DumpId *) palloc(nDeps * sizeof(DumpId));
 		memcpy(newToc->dependencies, deps, nDeps * sizeof(DumpId));
 		newToc->nDeps = nDeps;
 	}
@@ -1185,7 +1189,7 @@ PrintTOCSummary(Archive *AHX)
 			if (te->namespace)
 				sanitized_schema = replace_line_endings(te->namespace);
 			else
-				sanitized_schema = pg_strdup("-");
+				sanitized_schema = pstrdup("-");
 			sanitized_owner = replace_line_endings(te->owner);
 
 			ahprintf(AH, "%d; %u %u %s %s %s %s\n", te->dumpId,
@@ -1375,7 +1379,7 @@ SortTocFromFile(Archive *AHX)
 	bool		incomplete_line;
 
 	/* Allocate space for the 'wanted' array, and init it */
-	ropt->idWanted = (bool *) pg_malloc(sizeof(bool) * AH->maxDumpId);
+	ropt->idWanted = (bool *) palloc(sizeof(bool) * AH->maxDumpId);
 	memset(ropt->idWanted, 0, sizeof(bool) * AH->maxDumpId);
 
 	/* Setup the file */
@@ -1480,7 +1484,7 @@ archprintf(Archive *AH, const char *fmt,...)
 		va_list		args;
 
 		/* Allocate work buffer. */
-		p = (char *) pg_malloc(len);
+		p = (char *) palloc(len);
 
 		/* Try to format the data. */
 		va_start(args, fmt);
@@ -1613,7 +1617,7 @@ ahprintf(ArchiveHandle *AH, const char *fmt,...)
 		va_list		args;
 
 		/* Allocate work buffer. */
-		p = (char *) pg_malloc(len);
+		p = (char *) palloc(len);
 
 		/* Try to format the data. */
 		va_start(args, fmt);
@@ -1851,8 +1855,8 @@ buildTocEntryArrays(ArchiveHandle *AH)
 	DumpId		maxDumpId = AH->maxDumpId;
 	TocEntry   *te;
 
-	AH->tocsByDumpId = (TocEntry **) pg_malloc0((maxDumpId + 1) * sizeof(TocEntry *));
-	AH->tableDataId = (DumpId *) pg_malloc0((maxDumpId + 1) * sizeof(DumpId));
+	AH->tocsByDumpId = (TocEntry **) palloc0((maxDumpId + 1) * sizeof(TocEntry *));
+	AH->tableDataId = (DumpId *) palloc0((maxDumpId + 1) * sizeof(DumpId));
 
 	for (te = AH->toc->next; te != AH->toc; te = te->next)
 	{
@@ -2079,7 +2083,7 @@ ReadStr(ArchiveHandle *AH)
 		buf = NULL;
 	else
 	{
-		buf = (char *) pg_malloc(l + 1);
+		buf = (char *) palloc(l + 1);
 		AH->ReadBufPtr(AH, (void *) buf, l);
 
 		buf[l] = '\0';
@@ -2104,7 +2108,7 @@ _discoverArchiveFormat(ArchiveHandle *AH)
 		free(AH->lookahead);
 
 	AH->lookaheadSize = 512;
-	AH->lookahead = pg_malloc0(512);
+	AH->lookahead = palloc0(512);
 	AH->lookaheadLen = 0;
 	AH->lookaheadPos = 0;
 
@@ -2304,7 +2308,7 @@ _allocAH(const char *FileSpec, const ArchiveFormat fmt,
 	write_msg(modulename, "allocating AH for %s, format %d\n", FileSpec, fmt);
 #endif
 
-	AH = (ArchiveHandle *) pg_malloc0(sizeof(ArchiveHandle));
+	AH = (ArchiveHandle *) palloc0(sizeof(ArchiveHandle));
 
 	/* AH->debugLevel = 100; */
 
@@ -2326,12 +2330,12 @@ _allocAH(const char *FileSpec, const ArchiveFormat fmt,
 	AH->offSize = sizeof(pgoff_t);
 	if (FileSpec)
 	{
-		AH->fSpec = pg_strdup(FileSpec);
+		AH->fSpec = pstrdup(FileSpec);
 
 		/*
 		 * Not used; maybe later....
 		 *
-		 * AH->workDir = pg_strdup(FileSpec); for(i=strlen(FileSpec) ; i > 0 ;
+		 * AH->workDir = pstrdup(FileSpec); for(i=strlen(FileSpec) ; i > 0 ;
 		 * i--) if (AH->workDir[i-1] == '/')
 		 */
 	}
@@ -2343,7 +2347,7 @@ _allocAH(const char *FileSpec, const ArchiveFormat fmt,
 	AH->currTablespace = NULL;	/* ditto */
 	AH->currWithOids = -1;		/* force SET */
 
-	AH->toc = (TocEntry *) pg_malloc0(sizeof(TocEntry));
+	AH->toc = (TocEntry *) palloc0(sizeof(TocEntry));
 
 	AH->toc->next = AH->toc;
 	AH->toc->prev = AH->toc;
@@ -2572,7 +2576,7 @@ ReadToc(ArchiveHandle *AH)
 
 	for (i = 0; i < AH->tocCount; i++)
 	{
-		te = (TocEntry *) pg_malloc0(sizeof(TocEntry));
+		te = (TocEntry *) palloc0(sizeof(TocEntry));
 		te->dumpId = ReadInt(AH);
 
 		if (te->dumpId > AH->maxDumpId)
@@ -2658,7 +2662,7 @@ ReadToc(ArchiveHandle *AH)
 		if (AH->version >= K_VERS_1_5)
 		{
 			depSize = 100;
-			deps = (DumpId *) pg_malloc(sizeof(DumpId) * depSize);
+			deps = (DumpId *) palloc(sizeof(DumpId) * depSize);
 			depIdx = 0;
 			for (;;)
 			{
@@ -2668,7 +2672,7 @@ ReadToc(ArchiveHandle *AH)
 				if (depIdx >= depSize)
 				{
 					depSize *= 2;
-					deps = (DumpId *) pg_realloc(deps, sizeof(DumpId) * depSize);
+					deps = (DumpId *) repalloc(deps, sizeof(DumpId) * depSize);
 				}
 				sscanf(tmp, "%d", &deps[depIdx]);
 				free(tmp);
@@ -2677,7 +2681,7 @@ ReadToc(ArchiveHandle *AH)
 
 			if (depIdx > 0)		/* We have a non-null entry */
 			{
-				deps = (DumpId *) pg_realloc(deps, sizeof(DumpId) * depIdx);
+				deps = (DumpId *) repalloc(deps, sizeof(DumpId) * depIdx);
 				te->dependencies = deps;
 				te->nDeps = depIdx;
 			}
@@ -2720,7 +2724,7 @@ static void
 processEncodingEntry(ArchiveHandle *AH, TocEntry *te)
 {
 	/* te->defn should have the form SET client_encoding = 'foo'; */
-	char	   *defn = pg_strdup(te->defn);
+	char	   *defn = pstrdup(te->defn);
 	char	   *ptr1;
 	char	   *ptr2 = NULL;
 	int			encoding;
@@ -2767,7 +2771,7 @@ processSearchPathEntry(ArchiveHandle *AH, TocEntry *te)
 	 * te->defn should contain a command to set search_path.  We just copy it
 	 * verbatim for use later.
 	 */
-	AH->public.searchpath = pg_strdup(te->defn);
+	AH->public.searchpath = pstrdup(te->defn);
 }
 
 static void
@@ -3301,7 +3305,7 @@ _becomeUser(ArchiveHandle *AH, const char *user)
 	 */
 	if (AH->currUser)
 		free(AH->currUser);
-	AH->currUser = pg_strdup(user);
+	AH->currUser = pstrdup(user);
 }
 
 /*
@@ -3381,7 +3385,7 @@ _selectOutputSchema(ArchiveHandle *AH, const char *schemaName)
 
 	if (AH->currSchema)
 		free(AH->currSchema);
-	AH->currSchema = pg_strdup(schemaName);
+	AH->currSchema = pstrdup(schemaName);
 
 	destroyPQExpBuffer(qry);
 }
@@ -3443,7 +3447,7 @@ _selectTablespace(ArchiveHandle *AH, const char *tablespace)
 
 	if (AH->currTablespace)
 		free(AH->currTablespace);
-	AH->currTablespace = pg_strdup(want);
+	AH->currTablespace = pstrdup(want);
 
 	destroyPQExpBuffer(qry);
 }
@@ -3510,7 +3514,7 @@ _getObjectDescription(PQExpBuffer buf, TocEntry *te, ArchiveHandle *AH)
 		strcmp(type, "PROCEDURE") == 0)
 	{
 		/* Chop "DROP " off the front and make a modifiable copy */
-		char	   *first = pg_strdup(te->dropStmt + 5);
+		char	   *first = pstrdup(te->dropStmt + 5);
 		char	   *last;
 
 		/* point to last character in string */
@@ -3591,11 +3595,11 @@ _printTocEntry(ArchiveHandle *AH, TocEntry *te, bool isData)
 		if (te->namespace)
 			sanitized_schema = replace_line_endings(te->namespace);
 		else
-			sanitized_schema = pg_strdup("-");
+			sanitized_schema = pstrdup("-");
 		if (!ropt->noOwner)
 			sanitized_owner = replace_line_endings(te->owner);
 		else
-			sanitized_owner = pg_strdup("-");
+			sanitized_owner = pstrdup("-");
 
 		ahprintf(AH, "-- %sName: %s; Type: %s; Schema: %s; Owner: %s",
 				 pfx, sanitized_name, te->desc, sanitized_schema,
@@ -3727,7 +3731,7 @@ replace_line_endings(const char *str)
 	char	   *result;
 	char	   *s;
 
-	result = pg_strdup(str);
+	result = pstrdup(str);
 
 	for (s = result; *s != '\0'; s++)
 	{
@@ -4479,7 +4483,7 @@ fix_dependencies(ArchiveHandle *AH)
 				{
 					if (strcmp(te2->desc, "BLOBS") == 0)
 					{
-						te->dependencies = (DumpId *) pg_malloc(sizeof(DumpId));
+						te->dependencies = (DumpId *) palloc(sizeof(DumpId));
 						te->dependencies[0] = te2->dumpId;
 						te->nDeps++;
 						te->depCount++;
@@ -4522,7 +4526,7 @@ fix_dependencies(ArchiveHandle *AH)
 	for (te = AH->toc->next; te != AH->toc; te = te->next)
 	{
 		if (te->nRevDeps > 0)
-			te->revDeps = (DumpId *) pg_malloc(te->nRevDeps * sizeof(DumpId));
+			te->revDeps = (DumpId *) palloc(te->nRevDeps * sizeof(DumpId));
 		te->nRevDeps = 0;
 	}
 
@@ -4627,7 +4631,7 @@ identify_locking_dependencies(ArchiveHandle *AH, TocEntry *te)
 	 * difference between a dependency on a table and a dependency on its
 	 * data, so that closer analysis would be needed here.
 	 */
-	lockids = (DumpId *) pg_malloc(te->nDeps * sizeof(DumpId));
+	lockids = (DumpId *) palloc(te->nDeps * sizeof(DumpId));
 	nlockids = 0;
 	for (i = 0; i < te->nDeps; i++)
 	{
@@ -4645,7 +4649,7 @@ identify_locking_dependencies(ArchiveHandle *AH, TocEntry *te)
 		return;
 	}
 
-	te->lockDeps = pg_realloc(lockids, nlockids * sizeof(DumpId));
+	te->lockDeps = repalloc(lockids, nlockids * sizeof(DumpId));
 	te->nLockDeps = nlockids;
 }
 
@@ -4734,7 +4738,7 @@ CloneArchive(ArchiveHandle *AH)
 	ArchiveHandle *clone;
 
 	/* Make a "flat" copy */
-	clone = (ArchiveHandle *) pg_malloc(sizeof(ArchiveHandle));
+	clone = (ArchiveHandle *) palloc(sizeof(ArchiveHandle));
 	memcpy(clone, AH, sizeof(ArchiveHandle));
 
 	/* Handle format-independent fields */
@@ -4750,7 +4754,7 @@ CloneArchive(ArchiveHandle *AH)
 
 	/* savedPassword must be local in case we change it while connecting */
 	if (clone->savedPassword)
-		clone->savedPassword = pg_strdup(clone->savedPassword);
+		clone->savedPassword = pstrdup(clone->savedPassword);
 
 	/* clone has its own error count, too */
 	clone->public.n_errors = 0;

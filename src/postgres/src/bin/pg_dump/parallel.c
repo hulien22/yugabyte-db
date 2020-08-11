@@ -49,7 +49,11 @@
  * state, and must be NULL in other states.
  */
 
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #ifndef WIN32
 #include <sys/wait.h>
@@ -484,7 +488,7 @@ WaitForTerminatingWorkers(ParallelState *pstate)
 		}
 #else							/* WIN32 */
 		/* On Windows, we must use WaitForMultipleObjects() */
-		HANDLE	   *lpHandles = pg_malloc(sizeof(HANDLE) * pstate->numWorkers);
+		HANDLE	   *lpHandles = palloc(sizeof(HANDLE) * pstate->numWorkers);
 		int			nrun = 0;
 		DWORD		ret;
 		uintptr_t	hThread;
@@ -915,7 +919,7 @@ ParallelBackupStart(ArchiveHandle *AH)
 
 	Assert(AH->public.numWorkers > 0);
 
-	pstate = (ParallelState *) pg_malloc(sizeof(ParallelState));
+	pstate = (ParallelState *) palloc(sizeof(ParallelState));
 
 	pstate->numWorkers = AH->public.numWorkers;
 	pstate->te = NULL;
@@ -925,9 +929,9 @@ ParallelBackupStart(ArchiveHandle *AH)
 		return pstate;
 
 	pstate->te = (TocEntry **)
-		pg_malloc0(pstate->numWorkers * sizeof(TocEntry *));
+		palloc0(pstate->numWorkers * sizeof(TocEntry *));
 	pstate->parallelSlot = (ParallelSlot *)
-		pg_malloc0(pstate->numWorkers * sizeof(ParallelSlot));
+		palloc0(pstate->numWorkers * sizeof(ParallelSlot));
 
 #ifdef WIN32
 	/* Make fmtId() and fmtQualifiedId() use thread-local storage */
@@ -989,7 +993,7 @@ ParallelBackupStart(ArchiveHandle *AH)
 
 #ifdef WIN32
 		/* Create transient structure to pass args to worker function */
-		wi = (WorkerInfo *) pg_malloc(sizeof(WorkerInfo));
+		wi = (WorkerInfo *) palloc(sizeof(WorkerInfo));
 
 		wi->AH = AH;
 		wi->slot = slot;
@@ -1398,7 +1402,7 @@ WaitForCommands(ArchiveHandle *AH, int pipefd[2])
 
 		sendMessageToMaster(pipefd, buf);
 
-		/* command was pg_malloc'd and we are responsible for free()ing it. */
+		/* command was palloc'd and we are responsible for free()ing it. */
 		free(command);
 	}
 }
@@ -1704,7 +1708,7 @@ readMessageFromPipe(int fd)
 	 * command and status strings, it shouldn't matter.
 	 */
 	bufsize = 64;				/* could be any number */
-	msg = (char *) pg_malloc(bufsize);
+	msg = (char *) palloc(bufsize);
 	msgsize = 0;
 	for (;;)
 	{
@@ -1722,12 +1726,12 @@ readMessageFromPipe(int fd)
 		if (msgsize == bufsize) /* enlarge buffer if needed */
 		{
 			bufsize += 16;		/* could be any number */
-			msg = (char *) pg_realloc(msg, bufsize);
+			msg = (char *) repalloc(msg, bufsize);
 		}
 	}
 
 	/* Other end has closed the connection */
-	pg_free(msg);
+	pfree(msg);
 	return NULL;
 }
 
