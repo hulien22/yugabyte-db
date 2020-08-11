@@ -603,12 +603,14 @@ _CloseArchive(ArchiveHandle *AH)
 
 		ParallelBackupEnd(AH, ctx->pstate);
 
+#ifdef FRONTEND
 		/*
 		 * In directory mode, there is no need to sync all the entries
 		 * individually. Just recurse once through all the files generated.
 		 */
 		if (AH->dosync)
 			fsync_dir_recurse(ctx->directory, progname);
+#endif
 	}
 	AH->FH = NULL;
 }

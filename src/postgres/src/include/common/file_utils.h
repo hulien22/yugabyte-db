@@ -15,12 +15,12 @@
 #ifndef FILE_UTILS_H
 #define FILE_UTILS_H
 
-extern int _fsync_fname(const char *fname, bool isdir,
+extern int fsync_fname(const char *fname, bool isdir,
 			const char *progname);
 extern void fsync_pgdata(const char *pg_data, const char *progname,
 			 int serverVersion);
 extern void fsync_dir_recurse(const char *dir, const char *progname);
-extern int _durable_rename(const char *oldfile, const char *newfile,
+extern int durable_rename(const char *oldfile, const char *newfile,
 			   const char *progname);
 extern int	fsync_parent_path(const char *fname, const char *progname);
 

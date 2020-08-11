@@ -14,7 +14,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include "fe_utils/simple_list.h"
 
@@ -27,7 +31,7 @@ simple_oid_list_append(SimpleOidList *list, Oid val)
 {
 	SimpleOidListCell *cell;
 
-	cell = (SimpleOidListCell *) pg_malloc(sizeof(SimpleOidListCell));
+	cell = (SimpleOidListCell *) palloc(sizeof(SimpleOidListCell));
 	cell->next = NULL;
 	cell->val = val;
 
@@ -65,7 +69,7 @@ simple_string_list_append(SimpleStringList *list, const char *val)
 	SimpleStringListCell *cell;
 
 	cell = (SimpleStringListCell *)
-		pg_malloc(offsetof(SimpleStringListCell, val) + strlen(val) + 1);
+		palloc(offsetof(SimpleStringListCell, val) + strlen(val) + 1);
 
 	cell->next = NULL;
 	cell->touched = false;

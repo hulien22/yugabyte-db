@@ -578,7 +578,7 @@ main(int argc, char *argv[])
 
 		/* sync the resulting file, errors are not fatal */
 		if (dosync)
-			(void) _fsync_fname(filename, false, progname);
+			(void) fsync_fname(filename, false, progname);
 	}
 
 	exit_nicely(0);

@@ -155,7 +155,7 @@ dir_open_for_write(const char *pathname, const char *temp_suffix, size_t pad_to_
 	 */
 	if (dir_data->sync)
 	{
-		if (_fsync_fname(tmppath, false, progname) != 0 ||
+		if (fsync_fname(tmppath, false, progname) != 0 ||
 			fsync_parent_path(tmppath, progname) != 0)
 		{
 #ifdef HAVE_LIBZ
@@ -244,7 +244,7 @@ dir_close(Walfile f, WalCloseMethod method)
 			snprintf(tmppath2, sizeof(tmppath2), "%s/%s%s",
 					 dir_data->basedir, df->pathname,
 					 dir_data->compression > 0 ? ".gz" : "");
-			r = _durable_rename(tmppath, tmppath2, progname);
+			r = durable_rename(tmppath, tmppath2, progname);
 		}
 		else if (method == CLOSE_UNLINK)
 		{
@@ -264,7 +264,7 @@ dir_close(Walfile f, WalCloseMethod method)
 			 */
 			if (dir_data->sync)
 			{
-				r = _fsync_fname(df->fullpath, false, progname);
+				r = fsync_fname(df->fullpath, false, progname);
 				if (r == 0)
 					r = fsync_parent_path(df->fullpath, progname);
 			}
@@ -339,7 +339,7 @@ dir_finish(void)
 		 * Files are fsynced when they are closed, but we need to fsync the
 		 * directory entry here as well.
 		 */
-		if (_fsync_fname(dir_data->basedir, true, progname) != 0)
+		if (fsync_fname(dir_data->basedir, true, progname) != 0)
 			return false;
 	}
 	return true;
@@ -970,7 +970,7 @@ tar_finish(void)
 
 	if (tar_data->sync)
 	{
-		if (_fsync_fname(tar_data->tarfilename, false, progname) != 0)
+		if (fsync_fname(tar_data->tarfilename, false, progname) != 0)
 			return false;
 		if (fsync_parent_path(tar_data->tarfilename, progname) != 0)
 			return false;
