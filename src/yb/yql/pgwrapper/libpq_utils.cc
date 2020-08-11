@@ -166,6 +166,7 @@ void PGResultClear::operator()(PGresult* result) const {
   PQclear(result);
 }
 
+// execute
 Status PGConn::Execute(const std::string& command) {
   PGResultPtr res(PQexec(impl_.get(), command.c_str()));
   auto status = PQresultStatus(res.get());

@@ -126,7 +126,7 @@ main(int argc, char *argv[])
 		{"inserts", no_argument, &inserts, 1},
 		{"lock-wait-timeout", required_argument, NULL, 2},
 		{"no-tablespaces", no_argument, &no_tablespaces, 1},
-		{"quote-all-identifiers", no_argument, &quote_all_identifiers, 1},
+		{"quote-all-identifiers", no_argument, &fe_quote_all_identifiers, 1},
 		{"load-via-partition-root", no_argument, &load_via_partition_root, 1},
 		{"role", required_argument, NULL, 3},
 		{"use-set-session-authorization", no_argument, &use_setsessauth, 1},
@@ -390,7 +390,7 @@ main(int argc, char *argv[])
 		appendPQExpBufferStr(pgdumpopts, " --inserts");
 	if (no_tablespaces)
 		appendPQExpBufferStr(pgdumpopts, " --no-tablespaces");
-	if (quote_all_identifiers)
+	if (fe_quote_all_identifiers)
 		appendPQExpBufferStr(pgdumpopts, " --quote-all-identifiers");
 	if (load_via_partition_root)
 		appendPQExpBufferStr(pgdumpopts, " --load-via-partition-root");
@@ -493,7 +493,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Force quoting of all identifiers if requested. */
-	if (quote_all_identifiers && server_version >= 90100)
+	if (fe_quote_all_identifiers && server_version >= 90100)
 		executeCommand(conn, "SET quote_all_identifiers = true");
 
 	fprintf(OPF, "--\n-- YSQL database cluster dump\n--\n\n");

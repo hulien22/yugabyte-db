@@ -24,8 +24,7 @@
 #define PG_BACKUP_H
 
 #include "fe_utils/simple_list.h"
-#include "libpq-fe.h"
-
+#include "../interfaces/libpq/libpq-fe.h"
 
 typedef enum trivalue
 {

@@ -25,7 +25,7 @@
 static PQExpBuffer defaultGetLocalPQExpBuffer(void);
 
 /* Globals exported by this file */
-int			quote_all_identifiers = 0;
+int			fe_quote_all_identifiers = 0;
 PQExpBuffer (*getLocalPQExpBuffer) (void) = defaultGetLocalPQExpBuffer;
 
 
@@ -74,7 +74,7 @@ fmtId(const char *rawid)
 	 * These checks need to match the identifier production in scan.l. Don't
 	 * use islower() etc.
 	 */
-	if (quote_all_identifiers)
+	if (fe_quote_all_identifiers)
 		need_quotes = true;
 	/* slightly different rules for first character */
 	else if (!((rawid[0] >= 'a' && rawid[0] <= 'z') || rawid[0] == '_'))

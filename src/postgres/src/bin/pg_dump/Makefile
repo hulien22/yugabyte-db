@@ -29,34 +29,41 @@ endif
 
 LIBS += -L$(YB_BUILD_ROOT)/lib -lyb_util
 
-all: ysql_dump pg_restore ysql_dumpall
+$(info JHETEST (pg_dump) $$LDFLAGS = ${LDFLAGS})
+$(info JHETEST (pg_dump) $$LDFLAGS_INTERNAL = ${LDFLAGS_INTERNAL})
+$(info JHETEST (pg_dump) $$LDFLAGS_EX = ${LDFLAGS_EX})
 
-ysql_dump: pg_dump_main.o pg_dump.o common.o pg_dump_sort.o $(OBJS) | submake-libpq submake-libpgport submake-libpgfeutils
-	$(CC) $(CFLAGS) pg_dump_main.o pg_dump.o common.o pg_dump_sort.o $(OBJS) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -lyb_pggate -lyb_common -o $@$(X)
+# all: ysql_dump pg_restore ysql_dumpall
 
-pg_restore: pg_restore.o $(OBJS) | submake-libpq submake-libpgport submake-libpgfeutils
-	$(CC) $(CFLAGS) pg_restore.o $(OBJS) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -o $@$(X)
+# ysql_dump: pg_dump_main.o pg_dump.o common.o pg_dump_sort.o $(OBJS) | submake-libpq submake-libpgport submake-libpgfeutils
+# 	$(CC) $(CFLAGS) pg_dump_main.o pg_dump.o common.o pg_dump_sort.o $(OBJS) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -lyb_pggate -lyb_common -o $@$(X)
 
-ysql_dumpall: pg_dumpall.o dumputils.o | submake-libpq submake-libpgport submake-libpgfeutils
-	$(CC) $(CFLAGS) pg_dumpall.o dumputils.o $(WIN32RES) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -o $@$(X)
+# pg_restore: pg_restore.o $(OBJS) | submake-libpq submake-libpgport submake-libpgfeutils
+# 	$(CC) $(CFLAGS) pg_restore.o $(OBJS) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -o $@$(X)
 
-install: all installdirs
-	$(INSTALL_PROGRAM) ysql_dump$(X) '$(DESTDIR)$(bindir)'/ysql_dump$(X)
-	$(INSTALL_PROGRAM) pg_restore$(X) '$(DESTDIR)$(bindir)'/pg_restore$(X)
-	$(INSTALL_PROGRAM) ysql_dumpall$(X) '$(DESTDIR)$(bindir)'/ysql_dumpall$(X)
+# ysql_dumpall: pg_dumpall.o dumputils.o | submake-libpq submake-libpgport submake-libpgfeutils
+# 	$(CC) $(CFLAGS) pg_dumpall.o dumputils.o $(WIN32RES) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -o $@$(X)
 
-installdirs:
-	$(MKDIR_P) '$(DESTDIR)$(bindir)'
+# install: all installdirs
+# 	$(INSTALL_PROGRAM) ysql_dump$(X) '$(DESTDIR)$(bindir)'/ysql_dump$(X)
+# 	$(INSTALL_PROGRAM) pg_restore$(X) '$(DESTDIR)$(bindir)'/pg_restore$(X)
+# 	$(INSTALL_PROGRAM) ysql_dumpall$(X) '$(DESTDIR)$(bindir)'/ysql_dumpall$(X)
 
-check:
-	$(prove_check)
+# installdirs:
+# 	$(MKDIR_P) '$(DESTDIR)$(bindir)'
 
-installcheck:
-	$(prove_installcheck)
+# check:
+# 	$(prove_check)
 
-uninstall:
-	rm -f $(addprefix '$(DESTDIR)$(bindir)'/, ysql_dump$(X) pg_restore$(X) ysql_dumpall$(X))
+# installcheck:
+# 	$(prove_installcheck)
 
-clean distclean maintainer-clean:
-	rm -f pg_dump$(X) pg_restore$(X) pg_dumpall$(X) $(OBJS) pg_dump_main.o pg_dump.o common.o pg_dump_sort.o pg_restore.o pg_dumpall.o
-	rm -rf tmp_check
+# uninstall:
+# 	rm -f $(addprefix '$(DESTDIR)$(bindir)'/, ysql_dump$(X) pg_restore$(X) ysql_dumpall$(X))
+
+# clean distclean maintainer-clean:
+# 	rm -f pg_dump$(X) pg_restore$(X) pg_dumpall$(X) $(OBJS) pg_dump_main.o pg_dump.o common.o pg_dump_sort.o pg_restore.o pg_dumpall.o
+# 	rm -rf tmp_check
+
+OBJS += pg_dump.o common.o pg_dump_sort.o
+include $(top_srcdir)/src/backend/common.mk

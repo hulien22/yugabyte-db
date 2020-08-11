@@ -12,10 +12,12 @@ subdir = src
 top_builddir = ..
 include Makefile.global
 
+# move things arounds here?
 SUBDIRS = \
 	common \
 	port \
 	timezone \
+	fe_utils \
 	backend \
 	backend/utils/mb/conversion_procs \
 	backend/snowball \
@@ -23,7 +25,6 @@ SUBDIRS = \
 	interfaces \
 	backend/replication/libpqwalreceiver \
 	backend/replication/pgoutput \
-	fe_utils \
 	bin \
 	pl \
 	makefiles \

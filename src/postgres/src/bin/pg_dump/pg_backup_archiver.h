@@ -29,7 +29,7 @@
 
 #include "pg_backup.h"
 
-#include "libpq-fe.h"
+#include "../interfaces/libpq/libpq-fe.h"
 #include "pqexpbuffer.h"
 
 #define LOBBUFSIZE 16384

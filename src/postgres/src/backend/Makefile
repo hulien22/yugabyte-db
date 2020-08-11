@@ -18,14 +18,15 @@ top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
 
 # override CPPFLAGS := -I$(libpq_srcdir) $(CPPFLAGS)
+# $(top_srcdir)/src/interfaces/libpq
 # LDFLAGS_INTERNAL += -L$(top_builddir)/src/fe_utils -lpgfeutils $(libpq_pgport)
 # LDFLAGS_INTERNAL += -L$(top_builddir)/src/fe_utils -lpgfeutils
 
-SUBDIRS = access bootstrap catalog parser commands executor foreign lib libpq \
+SUBDIRS = $(top_builddir)/src/bin/pg_dump access bootstrap catalog parser commands executor foreign lib libpq \
 	main nodes optimizer partitioning port postmaster \
 	regex replication rewrite \
 	statistics storage tcop tsearch utils $(top_builddir)/src/timezone \
-	jit ybgate $(top_builddir)/src/bin/pg_dump
+	jit ybgate #
 
 include $(srcdir)/common.mk
 
@@ -42,7 +43,8 @@ endif
 endif
 
 OBJS = $(SUBDIROBJS) $(LOCALOBJS) $(top_builddir)/src/port/libpgport_srv.a \
-       $(top_builddir)/src/common/libpgcommon_srv.a
+       $(top_builddir)/src/common/libpgcommon_srv.a \
+	   $(top_builddir)/src/fe_utils/libpgfeutils.a
 
 # We put libpgport and libpgcommon into OBJS, so remove it from LIBS; also add
 # libldap and ICU

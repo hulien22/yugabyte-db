@@ -1893,6 +1893,7 @@ getCopyResult(PGconn *conn, ExecStatusType copytype)
  * The user is responsible for freeing the PGresult via PQclear()
  * when done with it.
  */
+//
 PGresult *
 PQexec(PGconn *conn, const char *query)
 {

@@ -159,7 +159,7 @@ main(int argc, char **argv)
 		{"inserts", no_argument, &dopt.dump_inserts, 1},
 		{"lock-wait-timeout", required_argument, NULL, 2},
 		{"no-tablespaces", no_argument, &dopt.outputNoTablespaces, 1},
-		{"quote-all-identifiers", no_argument, &quote_all_identifiers, 1},
+		{"quote-all-identifiers", no_argument, &fe_quote_all_identifiers, 1},
 		{"load-via-partition-root", no_argument, &dopt.load_via_partition_root, 1},
 		{"role", required_argument, NULL, 3},
 		{"section", required_argument, NULL, 5},
