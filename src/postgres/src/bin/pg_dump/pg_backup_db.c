@@ -216,7 +216,7 @@ _connectDB(ArchiveHandle *AH, const char *reqdb, const char *requser)
 	if (PQconnectionUsedPassword(newConn))
 	{
 		if (AH->savedPassword)
-			free(AH->savedPassword);
+			pfree(AH->savedPassword);
 		AH->savedPassword = pstrdup(PQpass(newConn));
 	}
 
@@ -324,7 +324,7 @@ ConnectDatabase(Archive *AHX,
 	if (PQconnectionUsedPassword(AH->connection))
 	{
 		if (AH->savedPassword)
-			free(AH->savedPassword);
+			pfree(AH->savedPassword);
 		AH->savedPassword = pstrdup(PQpass(AH->connection));
 	}
 
@@ -606,7 +606,7 @@ ExecuteSqlCommandBuf(Archive *AHX, const char *buf, size_t bufLen)
 			memcpy(str, buf, bufLen);
 			str[bufLen] = '\0';
 			ExecuteSqlCommand(AH, str, "could not execute query");
-			free(str);
+			pfree(str);
 		}
 	}
 

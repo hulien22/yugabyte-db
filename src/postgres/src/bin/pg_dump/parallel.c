@@ -504,7 +504,7 @@ WaitForTerminatingWorkers(ParallelState *pstate)
 		ret = WaitForMultipleObjects(nrun, lpHandles, false, INFINITE);
 		Assert(ret != WAIT_FAILED);
 		hThread = (uintptr_t) lpHandles[ret - WAIT_OBJECT_0];
-		free(lpHandles);
+		pfree(lpHandles);
 
 		/* Find dead worker's slot, and clear the hThread field */
 		for (j = 0; j < pstate->numWorkers; j++)
@@ -766,7 +766,7 @@ set_archive_cancel_info(ArchiveHandle *AH, PGconn *conn)
 	EnterCriticalSection(&signal_info_lock);
 #endif
 
-	/* Free the old one if we have one */
+	/* pfree the old one if we have one */
 	oldConnCancel = AH->connCancel;
 	/* be sure interrupt handler doesn't use pointer while freeing */
 	AH->connCancel = NULL;
@@ -895,7 +895,7 @@ init_spawned_worker_win32(WorkerInfo *wi)
 	ParallelSlot *slot = wi->slot;
 
 	/* Don't need WorkerInfo anymore */
-	free(wi);
+	pfree(wi);
 
 	/* Run the worker ... */
 	RunWorker(AH, slot);
@@ -1111,9 +1111,9 @@ ParallelBackupEnd(ArchiveHandle *AH, ParallelState *pstate)
 	set_cancel_pstate(NULL);
 
 	/* Release state (mere neatnik-ism, since we're about to terminate) */
-	free(pstate->te);
-	free(pstate->parallelSlot);
-	free(pstate);
+	pfree(pstate->te);
+	pfree(pstate->parallelSlot);
+	pfree(pstate);
 }
 
 /*
@@ -1221,7 +1221,7 @@ parseWorkerResponse(ArchiveHandle *AH, TocEntry *te,
 }
 
 /*
- * Dispatch a job to some free worker.
+ * Dispatch a job to some pfree worker.
  *
  * te is the TocEntry to be processed, act is the action to be taken on it.
  * callback is the function to call on completion of the job.
@@ -1402,8 +1402,8 @@ WaitForCommands(ArchiveHandle *AH, int pipefd[2])
 
 		sendMessageToMaster(pipefd, buf);
 
-		/* command was palloc'd and we are responsible for free()ing it. */
-		free(command);
+		/* command was palloc'd and we are responsible for pfree()ing it. */
+		pfree(command);
 	}
 }
 
@@ -1457,8 +1457,8 @@ ListenToWorkers(ArchiveHandle *AH, ParallelState *pstate, bool do_wait)
 					  "invalid message received from worker: \"%s\"\n",
 					  msg);
 
-	/* Free the string returned from getMessageFromWorker */
-	free(msg);
+	/* pfree the string returned from getMessageFromWorker */
+	pfree(msg);
 
 	return true;
 }

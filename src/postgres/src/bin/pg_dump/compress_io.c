@@ -213,7 +213,7 @@ EndCompressor(ArchiveHandle *AH, CompressorState *cs)
 	if (cs->comprAlg == COMPR_ALG_LIBZ)
 		EndCompressorZlib(AH, cs);
 #endif
-	free(cs);
+	pfree(cs);
 }
 
 /* Private routines, specific to each compression method. */
@@ -266,8 +266,8 @@ EndCompressorZlib(ArchiveHandle *AH, CompressorState *cs)
 		exit_horribly(modulename,
 					  "could not close compression stream: %s\n", zp->msg);
 
-	free(cs->zlibOut);
-	free(cs->zp);
+	pfree(cs->zlibOut);
+	pfree(cs->zp);
 }
 
 static void
@@ -388,9 +388,9 @@ ReadDataFromArchiveZlib(ArchiveHandle *AH, ReadFunc readF)
 		exit_horribly(modulename,
 					  "could not close compression library: %s\n", zp->msg);
 
-	free(buf);
-	free(out);
-	free(zp);
+	pfree(buf);
+	pfree(out);
+	pfree(zp);
 }
 #endif							/* HAVE_LIBZ */
 
@@ -414,7 +414,7 @@ ReadDataFromArchiveNone(ArchiveHandle *AH, ReadFunc readF)
 		ahwrite(buf, 1, cnt, AH);
 	}
 
-	free(buf);
+	pfree(buf);
 }
 
 static void
@@ -447,13 +447,13 @@ struct cfp
 static int	hasSuffix(const char *filename, const char *suffix);
 #endif
 
-/* free() without changing errno; useful in several places below */
+/* pfree() without changing errno; useful in several places below */
 static void
 free_keep_errno(void *p)
 {
 	int			save_errno = errno;
 
-	free(p);
+	pfree(p);
 	errno = save_errno;
 }
 

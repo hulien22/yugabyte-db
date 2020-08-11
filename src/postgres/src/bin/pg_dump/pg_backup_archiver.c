@@ -631,7 +631,7 @@ RestoreArchive(Archive *AHX)
 		 * currUser here too.
 		 */
 		if (AH->currSchema)
-			free(AH->currSchema);
+			pfree(AH->currSchema);
 		AH->currSchema = NULL;
 	}
 
@@ -1197,9 +1197,9 @@ PrintTOCSummary(Archive *AHX)
 					 te->desc, sanitized_schema, sanitized_name,
 					 sanitized_owner);
 
-			free(sanitized_name);
-			free(sanitized_schema);
-			free(sanitized_owner);
+			pfree(sanitized_name);
+			pfree(sanitized_schema);
+			pfree(sanitized_owner);
 		}
 		if (ropt->verbose && te->nDeps > 0)
 		{
@@ -1495,12 +1495,12 @@ archprintf(Archive *AH, const char *fmt,...)
 			break;				/* success */
 
 		/* Release buffer and loop around to try again with larger len. */
-		free(p);
+		pfree(p);
 		len = cnt;
 	}
 
 	WriteData(AH, p, cnt);
-	free(p);
+	pfree(p);
 	return (int) cnt;
 }
 
@@ -1628,12 +1628,12 @@ ahprintf(ArchiveHandle *AH, const char *fmt,...)
 			break;				/* success */
 
 		/* Release buffer and loop around to try again with larger len. */
-		free(p);
+		pfree(p);
 		len = cnt;
 	}
 
 	ahwrite(p, 1, cnt, AH);
-	free(p);
+	pfree(p);
 	return (int) cnt;
 }
 
@@ -2105,7 +2105,7 @@ _discoverArchiveFormat(ArchiveHandle *AH)
 #endif
 
 	if (AH->lookahead)
-		free(AH->lookahead);
+		pfree(AH->lookahead);
 
 	AH->lookaheadSize = 512;
 	AH->lookahead = palloc0(512);
@@ -2594,13 +2594,13 @@ ReadToc(ArchiveHandle *AH)
 		{
 			tmp = ReadStr(AH);
 			sscanf(tmp, "%u", &te->catalogId.tableoid);
-			free(tmp);
+			pfree(tmp);
 		}
 		else
 			te->catalogId.tableoid = InvalidOid;
 		tmp = ReadStr(AH);
 		sscanf(tmp, "%u", &te->catalogId.oid);
-		free(tmp);
+		pfree(tmp);
 
 		te->tag = ReadStr(AH);
 		te->desc = ReadStr(AH);
@@ -2675,7 +2675,7 @@ ReadToc(ArchiveHandle *AH)
 					deps = (DumpId *) repalloc(deps, sizeof(DumpId) * depSize);
 				}
 				sscanf(tmp, "%d", &deps[depIdx]);
-				free(tmp);
+				pfree(tmp);
 				depIdx++;
 			}
 
@@ -2687,7 +2687,7 @@ ReadToc(ArchiveHandle *AH)
 			}
 			else
 			{
-				free(deps);
+				pfree(deps);
 				te->dependencies = NULL;
 				te->nDeps = 0;
 			}
@@ -2745,7 +2745,7 @@ processEncodingEntry(ArchiveHandle *AH, TocEntry *te)
 		exit_horribly(modulename, "invalid ENCODING item: %s\n",
 					  te->defn);
 
-	free(defn);
+	pfree(defn);
 }
 
 static void
@@ -3267,15 +3267,15 @@ _reconnectToDB(ArchiveHandle *AH, const char *dbname)
 	 * script is.  It's now effectively reset to the original userID.
 	 */
 	if (AH->currUser)
-		free(AH->currUser);
+		pfree(AH->currUser);
 	AH->currUser = NULL;
 
 	/* don't assume we still know the output schema, tablespace, etc either */
 	if (AH->currSchema)
-		free(AH->currSchema);
+		pfree(AH->currSchema);
 	AH->currSchema = NULL;
 	if (AH->currTablespace)
-		free(AH->currTablespace);
+		pfree(AH->currTablespace);
 	AH->currTablespace = NULL;
 	AH->currWithOids = -1;
 
@@ -3304,7 +3304,7 @@ _becomeUser(ArchiveHandle *AH, const char *user)
 	 * script is
 	 */
 	if (AH->currUser)
-		free(AH->currUser);
+		pfree(AH->currUser);
 	AH->currUser = pstrdup(user);
 }
 
@@ -3384,7 +3384,7 @@ _selectOutputSchema(ArchiveHandle *AH, const char *schemaName)
 		ahprintf(AH, "%s;\n\n", qry->data);
 
 	if (AH->currSchema)
-		free(AH->currSchema);
+		pfree(AH->currSchema);
 	AH->currSchema = pstrdup(schemaName);
 
 	destroyPQExpBuffer(qry);
@@ -3446,7 +3446,7 @@ _selectTablespace(ArchiveHandle *AH, const char *tablespace)
 		ahprintf(AH, "%s;\n\n", qry->data);
 
 	if (AH->currTablespace)
-		free(AH->currTablespace);
+		pfree(AH->currTablespace);
 	AH->currTablespace = pstrdup(want);
 
 	destroyPQExpBuffer(qry);
@@ -3527,7 +3527,7 @@ _getObjectDescription(PQExpBuffer buf, TocEntry *te, ArchiveHandle *AH)
 
 		appendPQExpBufferStr(buf, first);
 
-		free(first);
+		pfree(first);
 		return;
 	}
 
@@ -3605,9 +3605,9 @@ _printTocEntry(ArchiveHandle *AH, TocEntry *te, bool isData)
 				 pfx, sanitized_name, te->desc, sanitized_schema,
 				 sanitized_owner);
 
-		free(sanitized_name);
-		free(sanitized_schema);
-		free(sanitized_owner);
+		pfree(sanitized_name);
+		pfree(sanitized_schema);
+		pfree(sanitized_owner);
 
 		if (te->tablespace && strlen(te->tablespace) > 0 && !ropt->noTablespace)
 		{
@@ -3615,7 +3615,7 @@ _printTocEntry(ArchiveHandle *AH, TocEntry *te, bool isData)
 
 			sanitized_tablespace = replace_line_endings(te->tablespace);
 			ahprintf(AH, "; Tablespace: %s", sanitized_tablespace);
-			free(sanitized_tablespace);
+			pfree(sanitized_tablespace);
 		}
 		ahprintf(AH, "\n");
 
@@ -3715,7 +3715,7 @@ _printTocEntry(ArchiveHandle *AH, TocEntry *te, bool isData)
 	if (_tocEntryIsACL(te))
 	{
 		if (AH->currUser)
-			free(AH->currUser);
+			pfree(AH->currUser);
 		AH->currUser = NULL;
 	}
 }
@@ -4021,13 +4021,13 @@ restore_toc_entries_prefork(ArchiveHandle *AH, TocEntry *pending_list)
 
 	/* blow away any transient state from the old connection */
 	if (AH->currUser)
-		free(AH->currUser);
+		pfree(AH->currUser);
 	AH->currUser = NULL;
 	if (AH->currSchema)
-		free(AH->currSchema);
+		pfree(AH->currSchema);
 	AH->currSchema = NULL;
 	if (AH->currTablespace)
-		free(AH->currTablespace);
+		pfree(AH->currTablespace);
 	AH->currTablespace = NULL;
 	AH->currWithOids = -1;
 }
@@ -4645,7 +4645,7 @@ identify_locking_dependencies(ArchiveHandle *AH, TocEntry *te)
 
 	if (nlockids == 0)
 	{
-		free(lockids);
+		pfree(lockids);
 		return;
 	}
 
@@ -4836,13 +4836,13 @@ DeCloneArchive(ArchiveHandle *AH)
 
 	/* Clear any connection-local state */
 	if (AH->currUser)
-		free(AH->currUser);
+		pfree(AH->currUser);
 	if (AH->currSchema)
-		free(AH->currSchema);
+		pfree(AH->currSchema);
 	if (AH->currTablespace)
-		free(AH->currTablespace);
+		pfree(AH->currTablespace);
 	if (AH->savedPassword)
-		free(AH->savedPassword);
+		pfree(AH->savedPassword);
 
-	free(AH);
+	pfree(AH);
 }

@@ -577,7 +577,7 @@ _skipData(ArchiveHandle *AH)
 		if (blkLen > buflen)
 		{
 			if (buf)
-				free(buf);
+				pfree(buf);
 			buf = (char *) palloc(blkLen);
 			buflen = blkLen;
 		}
@@ -597,7 +597,7 @@ _skipData(ArchiveHandle *AH)
 	}
 
 	if (buf)
-		free(buf);
+		pfree(buf);
 }
 
 /*
@@ -808,7 +808,7 @@ _DeClone(ArchiveHandle *AH)
 {
 	lclContext *ctx = (lclContext *) AH->formatData;
 
-	free(ctx);
+	pfree(ctx);
 }
 
 /*
@@ -924,7 +924,7 @@ _CustomReadFunc(ArchiveHandle *AH, char **buf, size_t *buflen)
 	/* If the caller's buffer is not large enough, allocate a bigger one */
 	if (blkLen > *buflen)
 	{
-		free(*buf);
+		pfree(*buf);
 		*buf = (char *) palloc(blkLen);
 		*buflen = blkLen;
 	}

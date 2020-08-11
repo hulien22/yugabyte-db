@@ -1055,7 +1055,7 @@ dumpGroups(PGconn *conn)
 						  "SELECT usename FROM pg_shadow "
 						  "WHERE usesysid IN %s ORDER BY 1",
 						  grolist);
-		free(grolist);
+		pfree(grolist);
 
 		res2 = executeQuery(conn, buf->data);
 
@@ -1247,7 +1247,7 @@ dumpTablespaces(PGconn *conn)
 
 		fprintf(OPF, "%s", buf->data);
 
-		free(fspcname);
+		pfree(fspcname);
 		destroyPQExpBuffer(buf);
 	}
 
@@ -1555,9 +1555,9 @@ connectDatabase(const char *dbname, const char *connection_string,
 		int			i = 0;
 
 		if (keywords)
-			free(keywords);
+			pfree(keywords);
 		if (values)
-			free(values);
+			pfree(values);
 		if (conn_opts)
 			PQconninfoFree(conn_opts);
 
@@ -1673,8 +1673,8 @@ connectDatabase(const char *dbname, const char *connection_string,
 		{
 			PQfinish(conn);
 
-			free(keywords);
-			free(values);
+			pfree(keywords);
+			pfree(values);
 			PQconninfoFree(conn_opts);
 
 			return NULL;
@@ -1687,8 +1687,8 @@ connectDatabase(const char *dbname, const char *connection_string,
 	 */
 	connstr = constructConnStr(keywords, values);
 
-	free(keywords);
-	free(values);
+	pfree(keywords);
+	pfree(values);
 	PQconninfoFree(conn_opts);
 
 	/* Check version */

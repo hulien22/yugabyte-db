@@ -978,6 +978,8 @@ YBCDropIndex(Oid relationId)
 }
 
 void YsqlDump(YsqlDumpStmt *stmt) {
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("YSQLDUMP START: %s", stmt->name)));
 	Archive    *fout;
 	ArchiveFormat archiveFormat = archNull;
 	int			numWorkers = 1;
@@ -985,6 +987,8 @@ void YsqlDump(YsqlDumpStmt *stmt) {
 	int			plainText = 1;
 	const char *filename = "test.snapshot";
 	DumpOptions dopt;
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("InitDumpOptions")));
 	InitDumpOptions(&dopt);
 	dopt.schemaOnly = true;
 	dopt.dbname = stmt->name;
@@ -992,19 +996,35 @@ void YsqlDump(YsqlDumpStmt *stmt) {
 	dopt.include_yb_metadata = 1;
 	dopt.outputCreateDB = 1;
 	dopt.pghost = DefaultHost;
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("YBCSetMasterAddresses")));
 	YBCSetMasterAddresses(dopt.pghost);
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("YBCInit")));
 	HandleYBStatus(YBCInit("test", palloc, /* cstring_to_text_with_len_fn */ NULL));
-	HandleYBStatus(YBCInitPgGateBackend());
+	// ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+	// 				errmsg("YBCInitPgGateBackend")));
+	// HandleYBStatus(YBCInitPgGateBackend());
 
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("CreateArchive")));
 	fout = CreateArchive(filename, archiveFormat, compressLevel, true,
 						 archModeWrite, setupDumpWorker);
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("SetArchiveOptions")));
 	SetArchiveOptions(fout, &dopt, NULL);
 	fout->minRemoteVersion = 80000;
 	fout->maxRemoteVersion = (PG_VERSION_NUM / 100) * 100 + 99;
 	fout->numWorkers = numWorkers;
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("ConnectDatabase")));
 	ConnectDatabase(fout, dopt.dbname, dopt.pghost, NULL, NULL, TRI_DEFAULT);
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("setup_connection")));
 	setup_connection(fout, NULL, NULL, NULL);
 
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("dump")));
 	dump(&dopt,
 		  fout,
 		  archiveFormat,
@@ -1013,6 +1033,8 @@ void YsqlDump(YsqlDumpStmt *stmt) {
 		  compressLevel,
 		  plainText);
 
+	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("done")));
 	// exit_nicely(0);
 	// ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 	// 				errmsg("%s", stmt->name)));

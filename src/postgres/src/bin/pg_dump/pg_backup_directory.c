@@ -299,7 +299,7 @@ _ReadExtraToc(ArchiveHandle *AH, TocEntry *te)
 	tctx->filename = ReadStr(AH);
 	if (strlen(tctx->filename) == 0)
 	{
-		free(tctx->filename);
+		pfree(tctx->filename);
 		tctx->filename = NULL;
 	}
 }
@@ -408,7 +408,7 @@ _PrintFileData(ArchiveHandle *AH, char *filename)
 		ahwrite(buf, 1, cnt, AH);
 	}
 
-	free(buf);
+	pfree(buf);
 	if (cfclose(cfp) !=0)
 		exit_horribly(modulename, "could not close data file: %s\n",
 					  strerror(errno));
@@ -762,7 +762,7 @@ _DeClone(ArchiveHandle *AH)
 {
 	lclContext *ctx = (lclContext *) AH->formatData;
 
-	free(ctx);
+	pfree(ctx);
 }
 
 /*

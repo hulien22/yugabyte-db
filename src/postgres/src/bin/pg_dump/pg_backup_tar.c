@@ -309,7 +309,7 @@ _ReadExtraToc(ArchiveHandle *AH, TocEntry *te)
 	ctx->filename = ReadStr(AH);
 	if (strlen(ctx->filename) == 0)
 	{
-		free(ctx->filename);
+		pfree(ctx->filename);
 		ctx->filename = NULL;
 	}
 	ctx->TH = NULL;
@@ -406,7 +406,7 @@ tarOpen(ArchiveHandle *AH, const char *filename, char mode)
 				break;
 			fd = open(name, O_RDWR | O_CREAT | O_EXCL | O_BINARY |
 					  O_TEMPORARY, S_IRUSR | S_IWUSR);
-			free(name);
+			pfree(name);
 
 			if (fd != -1)		/* created a file */
 			{
@@ -468,7 +468,7 @@ tarClose(ArchiveHandle *AH, TAR_MEMBER *th)
 	 */
 
 	if (th->targetFile)
-		free(th->targetFile);
+		pfree(th->targetFile);
 
 	th->nFH = NULL;
 	th->zFH = NULL;
@@ -1050,12 +1050,12 @@ tarPrintf(ArchiveHandle *AH, TAR_MEMBER *th, const char *fmt,...)
 			break;				/* success */
 
 		/* Release buffer and loop around to try again with larger len. */
-		free(p);
+		pfree(p);
 		len = cnt;
 	}
 
 	cnt = tarWrite(p, cnt, th);
-	free(p);
+	pfree(p);
 	return (int) cnt;
 }
 
@@ -1193,7 +1193,7 @@ _tarPositionTo(ArchiveHandle *AH, const char *filename)
 			 * We're just scanning the archive for the next file, so return
 			 * null
 			 */
-			free(th);
+			pfree(th);
 			return NULL;
 		}
 	}

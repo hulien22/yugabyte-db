@@ -90,7 +90,7 @@ buildACLCommands(const char *name, const char *subname, const char *nspname,
 		if (!parsePGArray(acls, &aclitems, &naclitems))
 		{
 			if (aclitems)
-				free(aclitems);
+				pfree(aclitems);
 			return false;
 		}
 	}
@@ -100,7 +100,7 @@ buildACLCommands(const char *name, const char *subname, const char *nspname,
 		if (!parsePGArray(racls, &raclitems, &nraclitems))
 		{
 			if (raclitems)
-				free(raclitems);
+				pfree(raclitems);
 			return false;
 		}
 	}
@@ -382,10 +382,10 @@ buildACLCommands(const char *name, const char *subname, const char *nspname,
 	destroyPQExpBuffer(secondsql);
 
 	if (aclitems)
-		free(aclitems);
+		pfree(aclitems);
 
 	if (raclitems)
-		free(raclitems);
+		pfree(raclitems);
 
 	return ok;
 }
@@ -491,7 +491,7 @@ parseAclItem(const char *item, const char *type,
 	eqpos = copyAclUserName(grantee, buf);
 	if (*eqpos != '=')
 	{
-		free(buf);
+		pfree(buf);
 		return false;
 	}
 
@@ -503,13 +503,13 @@ parseAclItem(const char *item, const char *type,
 		slpos = copyAclUserName(grantor, slpos);
 		if (*slpos != '\0')
 		{
-			free(buf);
+			pfree(buf);
 			return false;
 		}
 	}
 	else
 	{
-		free(buf);
+		pfree(buf);
 		return false;
 	}
 
@@ -619,7 +619,7 @@ do { \
 			appendPQExpBuffer(privs, "(%s)", subname);
 	}
 
-	free(buf);
+	pfree(buf);
 
 	return true;
 }
@@ -686,7 +686,7 @@ AddAcl(PQExpBuffer aclbuf, const char *keyword, const char *subname)
  * The object is identified by its OID plus the name of the catalog
  * it can be found in (e.g., "pg_database" for database names).
  * The query is appended to "sql".  (We don't execute it here so as to
- * keep this file free of assumptions about how to deal with SQL errors.)
+ * keep this file pfree of assumptions about how to deal with SQL errors.)
  */
 void
 buildShSecLabelQuery(PGconn *conn, const char *catalog_name, Oid objectId,
@@ -894,7 +894,7 @@ variable_is_guc_list_quote(const char *name)
  *			   identifiers.
  * Outputs:
  *	namelist: receives a malloc'd, null-terminated array of pointers to
- *			  identifiers within rawstring.  Caller should free this
+ *			  identifiers within rawstring.  Caller should pfree this
  *			  even on error return.
  *
  * Returns true if okay, false if there is a syntax error in the string.

@@ -674,7 +674,7 @@ findObjectByCatalogId(CatalogId catalogId)
 	if (!catalogIdMapValid)
 	{
 		if (catalogIdMap)
-			free(catalogIdMap);
+			pfree(catalogIdMap);
 		getDumpableObjects(&catalogIdMap, &numCatalogIds);
 		if (numCatalogIds > 1)
 			qsort((void *) catalogIdMap, numCatalogIds,
