@@ -403,6 +403,7 @@ struct _tocEntry
 
 extern int	parallel_restore(ArchiveHandle *AH, TocEntry *te);
 extern void on_exit_close_archive(Archive *AHX);
+extern void close_archive(Archive *AHX);
 
 extern void warn_or_exit_horribly(ArchiveHandle *AH, const char *modulename, const char *fmt,...) pg_attribute_printf(3, 4);
 

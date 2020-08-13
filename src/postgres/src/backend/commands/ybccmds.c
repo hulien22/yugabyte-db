@@ -985,7 +985,7 @@ void YsqlDump(YsqlDumpStmt *stmt) {
 	int			numWorkers = 1;
 	int			compressLevel = 0;
 	int			plainText = 1;
-	const char *filename = "test.snapshot";
+	const char *filename = NULL;//"test.snapshot";
 	DumpOptions dopt;
 	ereport(INFO, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 					errmsg("InitDumpOptions")));

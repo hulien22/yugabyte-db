@@ -354,6 +354,13 @@ on_exit_close_archive(Archive *AHX)
 	on_exit_nicely(archive_close_connection, &shutdown_info);
 }
 
+void
+close_archive(Archive *AHX)
+{
+	shutdown_info.AHX = AHX;
+	archive_close_connection(0, &shutdown_info);
+}
+
 /*
  * on_exit_nicely handler for shutting down database connections and
  * worker processes cleanly.

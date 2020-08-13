@@ -13,7 +13,11 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifndef FRONTEND
+#include "postgres.h"
+#else
 #include "postgres_fe.h"
+#endif
 
 #include <ctype.h>
 
@@ -672,7 +676,7 @@ parsePGArray(const char *atext, char ***itemarray, int *nitems)
 	 * characters including backslashes and quotes are backslashed).
 	 *
 	 * We build the result as an array of pointers followed by the actual
-	 * string data, all in one malloc block for convenience of deallocation.
+	 * string data, all in one palloc block for convenience of deallocation.
 	 * The worst-case storage need is not more than one pointer and one
 	 * character for each input character (consider "{,,,,,,,,,,}").
 	 */
@@ -681,7 +685,7 @@ parsePGArray(const char *atext, char ***itemarray, int *nitems)
 	inputlen = strlen(atext);
 	if (inputlen < 2 || atext[0] != '{' || atext[inputlen - 1] != '}')
 		return false;			/* bad input */
-	items = (char **) malloc(inputlen * (sizeof(char *) + sizeof(char)));
+	items = (char **) palloc(inputlen * (sizeof(char *) + sizeof(char)));
 	if (items == NULL)
 		return false;			/* out of memory */
 	*itemarray = items;
@@ -753,7 +757,7 @@ appendReloptionsArray(PQExpBuffer buffer, const char *reloptions,
 	if (!parsePGArray(reloptions, &options, &noptions))
 	{
 		if (options)
-			free(options);
+			pfree(options);
 		return false;
 	}
 
@@ -797,7 +801,7 @@ appendReloptionsArray(PQExpBuffer buffer, const char *reloptions,
 	}
 
 	if (options)
-		free(options);
+		pfree(options);
 
 	return true;
 }

@@ -251,9 +251,15 @@ void dump(DumpOptions *dopt,
 	else if (dopt->include_yb_metadata)
 		dopt->db_oid = getDatabaseOid(fout);
 
+
+	if (g_verbose) write_msg(NULL, "jhetest numobjs: %d\n", numObjs);
 	/* Now the rearrangeable objects. */
 	for (int i = 0; i < numObjs; i++)
+	{
+		// if (g_verbose) write_msg(NULL, "jhetest i: %d, type: %d\n", i, dobjs[i]->objType);
 		dumpDumpableObject(fout, dobjs[i]);
+	}
+
 
 	/*
 	 * Set up options info to ensure we dump what we want.
@@ -324,6 +330,8 @@ void dump(DumpOptions *dopt,
 	if (dopt->include_yb_metadata)
 		YBCShutdownPgGateBackend();
 #endif  /* DISABLE_YB_EXTENTIONS */
+#else
+	close_archive(fout);
 #endif
 }
 
@@ -1953,8 +1961,6 @@ void
 dumpDatabase(Archive *fout)
 {
 
-	if (g_verbose)
-		write_msg(NULL, "jhetest 3\n");
 	DumpOptions *dopt = fout->dopt;
 	PQExpBuffer dbQry = createPQExpBuffer();
 	PQExpBuffer delQry = createPQExpBuffer();
@@ -1996,7 +2002,6 @@ dumpDatabase(Archive *fout)
 		write_msg(NULL, "saving database definition\n");
 
 	res = queryDatabaseData(fout, dbQry);
-
 	i_tableoid = PQfnumber(res, "tableoid");
 	i_oid = PQfnumber(res, "oid");
 	i_datname = PQfnumber(res, "datname");
@@ -2314,7 +2319,7 @@ dumpDatabase(Archive *fout)
 
 	PQclear(res);
 
-	pfree(qdatname);
+	pfree(qdatname);;
 	destroyPQExpBuffer(dbQry);
 	destroyPQExpBuffer(delQry);
 	destroyPQExpBuffer(creaQry);
@@ -2499,8 +2504,6 @@ dumpSearchPath(Archive *AH)
 				 NULL, 0,
 				 NULL, NULL);
 
-	if (g_verbose)
-		write_msg(NULL, "jhetest 1\n");
 	/* Also save it in AH->searchpath, in case we're doing plain text dump */
 	AH->searchpath = pstrdup(qry->data);
 
@@ -2510,8 +2513,6 @@ dumpSearchPath(Archive *AH)
 	destroyPQExpBuffer(qry);
 	destroyPQExpBuffer(path);
 
-	if (g_verbose)
-		write_msg(NULL, "jhetest 2\n");
 }
 
 
@@ -11436,10 +11437,11 @@ dumpFunc(Archive *fout, FuncInfo *finfo)
 	destroyPQExpBuffer(q);
 	destroyPQExpBuffer(delqry);
 	destroyPQExpBuffer(asPart);
-	pfree(funcsig);
+	// need to use free since malloc'd by libpq
+	free(funcsig);
 	if (funcfullsig)
-		pfree(funcfullsig);
-	pfree(funcsig_tag);
+		free(funcfullsig);
+	free(funcsig_tag);
 	if (allargtypes)
 		pfree(allargtypes);
 	if (argmodes)
@@ -13436,7 +13438,7 @@ dumpAgg(Archive *fout, AggInfo *agginfo)
 	 * command look like a function's GRANT; in particular this affects the
 	 * syntax for zero-argument aggregates and ordered-set aggregates.
 	 */
-	pfree(aggsig);
+	free(aggsig);
 
 	aggsig = format_function_signature(fout, &agginfo->aggfn, true);
 
@@ -13448,10 +13450,10 @@ dumpAgg(Archive *fout, AggInfo *agginfo)
 				agginfo->aggfn.rproacl,
 				agginfo->aggfn.initproacl, agginfo->aggfn.initrproacl);
 
-	pfree(aggsig);
+	free(aggsig);
 	if (aggfullsig)
-		pfree(aggfullsig);
-	pfree(aggsig_tag);
+		free(aggfullsig);
+	free(aggsig_tag);
 
 	PQclear(res);
 
